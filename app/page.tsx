@@ -1,65 +1,190 @@
-import Image from "next/image";
+import Header from '@/components/Header'
+import Carousel from '@/components/Carousel'
+import SessionFilter from '@/components/SessionFilter'
+import MovieRow from '@/components/MovieRow'
+import { getLocale } from '@/app/i18n/cookies'
+import { getTranslations } from '@/app/i18n'
 
-export default function Home() {
+// Моковые данные для демонстрации
+const popularMovies = [
+  {
+    id: 1,
+    title: 'Интерстеллар',
+    genre: 'Фантастика, Драма',
+    rating: 8.6,
+    price: 350,
+    times: ['10:00', '13:30', '17:00', '20:30'],
+  },
+  {
+    id: 2,
+    title: 'Начало',
+    genre: 'Фантастика, Триллер',
+    rating: 8.8,
+    price: 400,
+    times: ['11:00', '14:00', '18:30', '21:00'],
+  },
+  {
+    id: 3,
+    title: 'Темный рыцарь',
+    genre: 'Боевик, Криминал',
+    rating: 9.0,
+    price: 380,
+    times: ['12:00', '15:30', '19:00', '22:00'],
+  },
+  {
+    id: 4,
+    title: 'Форрест Гамп',
+    genre: 'Драма, Мелодрама',
+    rating: 8.8,
+    price: 320,
+    times: ['10:30', '14:30', '18:00', '21:30'],
+  },
+  {
+    id: 5,
+    title: 'Матрица',
+    genre: 'Фантастика, Боевик',
+    rating: 8.7,
+    price: 370,
+    times: ['11:30', '15:00', '19:30', '22:30'],
+  },
+  {
+    id: 6,
+    title: 'Побег из Шоушенка',
+    genre: 'Драма',
+    rating: 9.3,
+    price: 340,
+    times: ['09:30', '13:00', '16:30', '20:00'],
+  },
+]
+
+const comingSoon = [
+  {
+    id: 7,
+    title: 'Дюна: Часть 2',
+    genre: 'Фантастика, Приключения',
+    rating: 8.9,
+    price: 450,
+    times: ['10:00', '14:00', '18:00', '21:00'],
+  },
+  {
+    id: 8,
+    title: 'Оппенгеймер',
+    genre: 'Биография, Драма',
+    rating: 8.7,
+    price: 420,
+    times: ['11:00', '15:00', '19:00', '22:00'],
+  },
+  {
+    id: 9,
+    title: 'Барби',
+    genre: 'Комедия, Приключения',
+    rating: 7.8,
+    price: 380,
+    times: ['10:30', '13:30', '16:30', '19:30'],
+  },
+  {
+    id: 10,
+    title: 'Килеры цветочной луны',
+    genre: 'Криминал, Драма',
+    rating: 8.2,
+    price: 400,
+    times: ['12:00', '16:00', '20:00'],
+  },
+  {
+    id: 11,
+    title: 'Наполеон',
+    genre: 'Биография, Драма',
+    rating: 7.5,
+    price: 390,
+    times: ['11:30', '15:30', '19:30'],
+  },
+  {
+    id: 12,
+    title: 'Бедные-несчастные',
+    genre: 'Комедия, Драма',
+    rating: 8.4,
+    price: 410,
+    times: ['10:00', '14:00', '18:00', '21:00'],
+  },
+]
+
+const actionMovies = [
+  {
+    id: 13,
+    title: 'Джон Уик 4',
+    genre: 'Боевик, Триллер',
+    rating: 8.5,
+    price: 400,
+    times: ['11:00', '14:30', '18:00', '21:30'],
+  },
+  {
+    id: 14,
+    title: 'Миссия невыполнима',
+    genre: 'Боевик, Приключения',
+    rating: 8.3,
+    price: 420,
+    times: ['10:30', '14:00', '17:30', '21:00'],
+  },
+  {
+    id: 15,
+    title: 'Форсаж 10',
+    genre: 'Боевик, Криминал',
+    rating: 7.2,
+    price: 380,
+    times: ['12:00', '15:30', '19:00', '22:00'],
+  },
+  {
+    id: 16,
+    title: 'Аватар: Путь воды',
+    genre: 'Фантастика, Боевик',
+    rating: 8.1,
+    price: 450,
+    times: ['10:00', '14:00', '18:00', '21:30'],
+  },
+  {
+    id: 17,
+    title: 'Человек-паук',
+    genre: 'Боевик, Приключения',
+    rating: 8.7,
+    price: 400,
+    times: ['11:00', '14:30', '18:00', '21:00'],
+  },
+  {
+    id: 18,
+    title: 'Бэтмен',
+    genre: 'Боевик, Криминал',
+    rating: 8.4,
+    price: 390,
+    times: ['10:30', '14:00', '17:30', '21:00'],
+  },
+]
+
+export default async function Home() {
+  const locale = await getLocale()
+  const translations = await getTranslations(locale, 'landing')
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <Header translations={translations} locale={locale} />
+
+      {/* Hero Section - Full Screen Centered */}
+      <Carousel translations={translations} />
+
+      {/* Main Content */}
+      <main className="pb-12">
+        <div className="container mx-auto space-y-12 md:space-y-16 py-12">
+          {/* Session Filter - Centered */}
+          <div className="max-w-2xl mx-auto px-4">
+            <SessionFilter translations={translations} />
+          </div>
+
+          {/* Movie Rows */}
+          <MovieRow title={translations.movieRows.popularToday} movies={popularMovies} />
+          <MovieRow title={translations.movieRows.comingSoon} movies={comingSoon} />
+          <MovieRow title={translations.movieRows.action} movies={actionMovies} />
         </div>
       </main>
     </div>
-  );
+  )
 }

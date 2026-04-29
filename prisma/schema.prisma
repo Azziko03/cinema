@@ -1,0 +1,375 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 👤 USERS & AUTH
+// ============================================
+
+enum UserRole {
+  admin
+  user
+  controller
+}
+
+enum UserStatus {
+  active
+  inactive
+}
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique @db.VarChar(255)
+  passwordHash  String     @map("password_hash") @db.Text
+  fullName      String     @map("full_name") @db.VarChar(100)
+  role          UserRole   @default(user)
+  status        UserStatus @default(active)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  orders        Order[]
+  aiChats       AiChat[]
+
+  @@map("users")
+}
+
+// ============================================
+// 🎬 MOVIES
+// ============================================
+
+enum MovieStatus {
+  now_showing
+  coming_soon
+  archived
+}
+
+enum Language {
+  KG
+  RU
+  EN
+}
+
+model Movie {
+  id              String       @id @default(uuid()) @db.Uuid
+  durationMinutes Int          @map("duration_minutes")
+  ageRating       String       @map("age_rating") @db.VarChar(10)
+  releaseDate     DateTime     @map("release_date") @db.Date
+  status          MovieStatus  @default(now_showing)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  translations    MovieTranslation[]
+  metadata        MovieMetadata?
+  genres          MovieGenre[]
+  persons         MoviePerson[]
+  mediaFiles      MediaFile[]
+  sessions        Session[]
+
+  @@map("movies")
+}
+
+model MovieTranslation {
+  id          String   @id @default(uuid()) @db.Uuid
+  movieId     String   @map("movie_id") @db.Uuid
+  language    Language
+  title       String   @db.VarChar(255)
+  description String   @db.Text
+
+  // Relations
+  movie       Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@unique([movieId, language])
+  @@map("movie_translations")
+}
+
+model MovieMetadata {
+  id               String   @id @default(uuid()) @db.Uuid
+  movieId          String   @unique @map("movie_id") @db.Uuid
+  country          String   @db.VarChar(100)
+  year             Int
+  imdbRating       Decimal? @map("imdb_rating") @db.Decimal(3, 1)
+  kinopoiskRating  Decimal? @map("kinopoisk_rating") @db.Decimal(3, 1)
+
+  // Relations
+  movie            Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@map("movie_metadata")
+}
+
+model Genre {
+  id           String             @id @default(uuid()) @db.Uuid
+  slug         String             @unique @db.VarChar(100)
+
+  // Relations
+  translations GenreTranslation[]
+  movies       MovieGenre[]
+
+  @@map("genres")
+}
+
+model GenreTranslation {
+  id       String   @id @default(uuid()) @db.Uuid
+  genreId  String   @map("genre_id") @db.Uuid
+  language Language
+  title    String   @db.VarChar(255)
+
+  // Relations
+  genre    Genre    @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@unique([genreId, language])
+  @@map("genre_translations")
+}
+
+model MovieGenre {
+  movieId String @map("movie_id") @db.Uuid
+  genreId String @map("genre_id") @db.Uuid
+
+  // Relations
+  movie   Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre   Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, genreId])
+  @@map("movie_genres")
+}
+
+enum PersonType {
+  actor
+  director
+}
+
+model Person {
+  id     String     @id @default(uuid()) @db.Uuid
+  name   String     @db.VarChar(255)
+  type   PersonType
+
+  // Relations
+  movies MoviePerson[]
+
+  @@map("persons")
+}
+
+model MoviePerson {
+  movieId  String  @map("movie_id") @db.Uuid
+  personId String  @map("person_id") @db.Uuid
+  roleName String? @map("role_name") @db.VarChar(255)
+
+  // Relations
+  movie    Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  person   Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, personId])
+  @@map("movie_persons")
+}
+
+enum MediaType {
+  poster
+  trailer
+  gallery
+}
+
+model MediaFile {
+  id      String    @id @default(uuid()) @db.Uuid
+  movieId String    @map("movie_id") @db.Uuid
+  type    MediaType
+  url     String    @db.Text
+
+  // Relations
+  movie   Movie     @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@map("media_files")
+}
+
+// ============================================
+// 🎭 CINEMA
+// ============================================
+
+model Hall {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  totalSeats  Int      @map("total_seats")
+
+  // Relations
+  seats       Seat[]
+  sessions    Session[]
+
+  @@map("halls")
+}
+
+model Seat {
+  id         String  @id @default(uuid()) @db.Uuid
+  hallId     String  @map("hall_id") @db.Uuid
+  rowNumber  Int     @map("row_number")
+  seatNumber Int     @map("seat_number")
+  isActive   Boolean @default(true) @map("is_active")
+
+  // Relations
+  hall       Hall    @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@unique([hallId, rowNumber, seatNumber])
+  @@map("seats")
+}
+
+enum SessionLanguage {
+  original
+  dubbed
+}
+
+enum SessionFormat {
+  TWO_D @map("2D")
+  THREE_D @map("3D")
+  IMAX
+}
+
+model Session {
+  id        String          @id @default(uuid()) @db.Uuid
+  movieId   String          @map("movie_id") @db.Uuid
+  hallId    String          @map("hall_id") @db.Uuid
+  startTime DateTime        @map("start_time") @db.Timestamp(6)
+  endTime   DateTime        @map("end_time") @db.Timestamp(6)
+  basePrice Decimal         @map("base_price") @db.Decimal(10, 2)
+  language  SessionLanguage
+  format    SessionFormat
+
+  // Relations
+  movie      Movie       @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  hall       Hall        @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@map("sessions")
+}
+
+// ============================================
+// 💰 ORDERS & PAYMENTS
+// ============================================
+
+enum OrderStatus {
+  paid
+  cancelled
+  expired
+}
+
+enum PaymentStatus {
+  success
+  failed
+}
+
+model Order {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  status        OrderStatus
+  totalAmount   Decimal       @map("total_amount") @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @map("payment_status")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  expiresAt     DateTime      @map("expires_at") @db.Timestamp(6)
+
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         OrderItem[]
+  payments      Payment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid()) @db.Uuid
+  orderId   String  @map("order_id") @db.Uuid
+  sessionId String  @map("session_id") @db.Uuid
+  seatId    String  @map("seat_id") @db.Uuid
+  price     Decimal @db.Decimal(10, 2)
+
+  // Relations
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  seat      Seat    @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  ticket    Ticket?
+
+  @@map("order_items")
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  orderId           String        @map("order_id") @db.Uuid
+  provider          String        @db.VarChar(50)
+  externalPaymentId String        @map("external_payment_id") @db.VarChar(255)
+  amount            Decimal       @db.Decimal(10, 2)
+  status            PaymentStatus
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Ticket {
+  id          String    @id @default(uuid()) @db.Uuid
+  orderItemId String    @unique @map("order_item_id") @db.Uuid
+  qrCode      String    @unique @map("qr_code") @db.Text
+  isUsed      Boolean   @default(false) @map("is_used")
+  usedAt      DateTime? @map("used_at") @db.Timestamp(6)
+
+  // Relations
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@map("tickets")
+}
+
+// ============================================
+// ⚙️ SYSTEM
+// ============================================
+
+model Setting {
+  id    String @id @default(uuid()) @db.Uuid
+  key   String @unique @db.VarChar(255)
+  value String @db.Text
+
+  @@map("settings")
+}
+
+// ============================================
+// 🤖 AI CHAT
+// ============================================
+
+enum MessageSender {
+  user
+  ai
+}
+
+model AiChat {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  userId    String?  @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Relations
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages  AiMessage[]
+
+  @@map("ai_chats")
+}
+
+model AiMessage {
+  id        String        @id @default(uuid()) @db.Uuid
+  chatId    String        @map("chat_id") @db.Uuid
+  sender    MessageSender
+  message   String        @db.Text
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Relations
+  chat      AiChat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("ai_messages")
+}

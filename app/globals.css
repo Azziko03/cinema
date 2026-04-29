@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #ffffff;
+  --primary: #e50914;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1a1a;
+  --accent: #e50914;
+  --border: #2a2a2a;
+  --card: #0a0a0a;
+  --muted: #0f0f0f;
+  --hover: #1f1f1f;
 }
 
 @theme inline {
@@ -12,15 +20,38 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Скрытие скроллбара */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Плавные переходы */
+* {
+  transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Netflix-style hover эффект */
+.movie-card {
+  transition: transform 0.3s ease, z-index 0s 0.3s;
+}
+
+.movie-card:hover {
+  transform: scale(1.05);
+  z-index: 10;
+  transition: transform 0.3s ease, z-index 0s 0s;
+}
+
+/* Градиент для hero секции */
+.hero-gradient {
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.7) 50%, #000000 100%);
 }
