@@ -67,10 +67,18 @@ async function main() {
   ]
 
   for (const hallData of halls) {
-    const hall = await prisma.hall.upsert({
-      where: { id: 'temp-id-' + hallData.name },
-      update: {},
-      create: hallData,
+    // Проверяем существует ли зал
+    const existingHall = await prisma.hall.findFirst({
+      where: { name: hallData.name },
+    })
+
+    if (existingHall) {
+      console.log(`⏭️  Зал "${hallData.name}" уже существует, пропускаем`)
+      continue
+    }
+
+    const hall = await prisma.hall.create({
+      data: hallData,
     })
 
     // Создаем места для зала
@@ -100,6 +108,8 @@ async function main() {
     { key: 'site_description', value: 'Современный кинотеатр в вашем городе' },
     { key: 'booking_timeout_minutes', value: '15' },
     { key: 'max_tickets_per_order', value: '10' },
+    { key: 'ADMIN_TELEGRAM_BOT_TOKEN', value: '' }, // Заполнить вручную
+    { key: 'ADMIN_TELEGRAM_USER_ID', value: '' }, // Заполнить вручную
   ]
 
   for (const setting of settings) {
@@ -110,6 +120,7 @@ async function main() {
     })
   }
   console.log('✅ Настройки системы созданы')
+  console.log('⚠️  Не забудьте заполнить ADMIN_TELEGRAM_BOT_TOKEN и ADMIN_TELEGRAM_USER_ID в таблице settings!')
 
   console.log('🎉 Заполнение базы данных завершено!')
 }

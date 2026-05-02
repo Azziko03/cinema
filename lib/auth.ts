@@ -26,6 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
     Credentials({
+      id: "credentials",
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -44,6 +45,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("Неверный email или пароль");
         }
 
+        // ЗАПРЕТ ВХОДА ДЛЯ АДМИНОВ ЧЕРЕЗ ОБЫЧНУЮ ФОРМУ
+        if (user.role === "admin") {
+          throw new Error("Доступ запрещен");
+        }
+
         const isPasswordValid = await bcrypt.compare(
           credentials.password as string,
           user.passwordHash
@@ -60,6 +66,40 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Проверка верификации email
         if (!user.emailVerified) {
           throw new Error("Email не подтвержден. Проверьте почту.");
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.fullName,
+          role: user.role,
+          image: user.image,
+        };
+      },
+    }),
+    // Отдельный provider для админов с 2FA через Telegram
+    Credentials({
+      id: "admin-credentials",
+      name: "admin-credentials",
+      credentials: {
+        userId: { label: "User ID", type: "text" },
+        verified: { label: "Verified", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.userId || credentials?.verified !== "true") {
+          throw new Error("Неверные данные авторизации");
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { id: credentials.userId as string },
+        });
+
+        if (!user || user.role !== "admin") {
+          throw new Error("Пользователь не найден или не является администратором");
+        }
+
+        if (user.status !== "active") {
+          throw new Error("Аккаунт заблокирован");
         }
 
         return {
@@ -130,7 +170,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.role = token.role as "user" | "admin" | "controller";
       }
       return session;
     },
