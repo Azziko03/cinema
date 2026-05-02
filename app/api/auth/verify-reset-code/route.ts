@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const verifyResetSchema = z.object({
+  userId: z.string().uuid(),
+  code: z.string().length(6, "Код должен содержать 6 цифр"),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    
+    // Валидация
+    const validatedData = verifyResetSchema.parse(body);
+
+    // Поиск пользователя
+    const user = await prisma.user.findUnique({
+      where: { id: validatedData.userId },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Пользователь не найден" },
+        { status: 404 }
+      );
+    }
+
+    // Проверка кода
+    if (user.verificationCode !== validatedData.code) {
+      return NextResponse.json(
+        { error: "Неверный код подтверждения" },
+        { status: 400 }
+      );
+    }
+
+    // Проверка срока действия кода
+    if (!user.codeExpiresAt || user.codeExpiresAt < new Date()) {
+      return NextResponse.json(
+        { error: "Код подтверждения истек. Запросите новый код." },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message: "Код подтвержден",
+        success: true,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    console.error("Verification error:", error);
+    return NextResponse.json(
+      { error: "Ошибка при подтверждении кода" },
+      { status: 500 }
+    );
+  }
+}

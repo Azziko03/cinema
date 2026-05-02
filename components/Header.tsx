@@ -1,6 +1,7 @@
 'use client'
 
 import LanguageSwitcher from './LanguageSwitcher'
+import UserMenu from './UserMenu'
 import { type Locale } from '@/app/i18n/config'
 
 interface HeaderProps {
@@ -32,12 +33,7 @@ export default function Header({ translations, locale }: HeaderProps) {
         {/* Кнопки авторизации и переключатель языка */}
         <div className="flex items-center gap-3">
           <LanguageSwitcher currentLocale={locale} />
-          <button className="px-4 py-2 text-sm font-medium hover:text-gray-300 transition-colors">
-            {t.auth.register}
-          </button>
-          <button className="px-6 py-2 bg-[#e50914] hover:bg-[#f40612] rounded-full text-sm font-semibold transition-colors">
-            {t.auth.login}
-          </button>
+          <UserMenu />
         </div>
       </div>
     </header>
