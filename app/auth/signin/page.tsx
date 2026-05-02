@@ -27,8 +27,22 @@ export default function SignInPage() {
       if (result?.error) {
         setError(result.error);
       } else {
-        router.push("/profile");
-        router.refresh();
+        // Проверяем роль пользователя
+        const response = await fetch("/api/user");
+        const userData = await response.json();
+
+        if (userData.role === "controller") {
+          setError("Контроллеры не могут входить через эту страницу. Используйте /controller/login");
+          // Выходим из системы
+          await signIn("credentials", { redirect: false }); // Сбрасываем сессию
+          await fetch("/api/auth/signout", { method: "POST" });
+        } else if (userData.role === "admin") {
+          setError("Администраторы не могут входить через эту страницу. Используйте /admin/login");
+          await fetch("/api/auth/signout", { method: "POST" });
+        } else {
+          router.push("/profile");
+          router.refresh();
+        }
       }
     } catch (err) {
       setError("Произошла ошибка при входе");

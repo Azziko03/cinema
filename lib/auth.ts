@@ -45,8 +45,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("Неверный email или пароль");
         }
 
-        // ЗАПРЕТ ВХОДА ДЛЯ АДМИНОВ ЧЕРЕЗ ОБЫЧНУЮ ФОРМУ
-        if (user.role === "admin") {
+        // ЗАПРЕТ ВХОДА ДЛЯ АДМИНОВ И КОНТРОЛЛЕРОВ ЧЕРЕЗ ОБЫЧНУЮ ФОРМУ
+        if (user.role === "admin" || user.role === "controller") {
           throw new Error("Доступ запрещен");
         }
 
@@ -66,6 +66,54 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Проверка верификации email
         if (!user.emailVerified) {
           throw new Error("Email не подтвержден. Проверьте почту.");
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.fullName,
+          role: user.role,
+          image: user.image,
+        };
+      },
+    }),
+    // Отдельный provider для контроллеров
+    Credentials({
+      id: "controller-credentials",
+      name: "controller-credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email и пароль обязательны");
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!user || !user.passwordHash) {
+          throw new Error("Неверный email или пароль");
+        }
+
+        // ТОЛЬКО ДЛЯ КОНТРОЛЛЕРОВ
+        if (user.role !== "controller") {
+          throw new Error("Доступ запрещен. Только для контроллеров.");
+        }
+
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password as string,
+          user.passwordHash
+        );
+
+        if (!isPasswordValid) {
+          throw new Error("Неверный email или пароль");
+        }
+
+        if (user.status !== "active") {
+          throw new Error("Аккаунт заблокирован");
         }
 
         return {
@@ -121,6 +169,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
 
           if (existingUser) {
+            // БЛОКИРУЕМ ВХОД КОНТРОЛЛЕРОВ И АДМИНОВ ЧЕРЕЗ GOOGLE
+            if (existingUser.role === "controller" || existingUser.role === "admin") {
+              return false; // Запрещаем вход
+            }
+
             // Обновляем Google ID и аватар если их нет
             if (!existingUser.googleId) {
               await prisma.user.update({
@@ -135,7 +188,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             user.id = existingUser.id;
             (user as any).role = existingUser.role;
           } else {
-            // Создаем нового пользователя
+            // Создаем нового пользователя (только с ролью user)
             const newUser = await prisma.user.create({
               data: {
                 email: user.email!,
