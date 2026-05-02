@@ -6,7 +6,7 @@ import { signIn } from "@/lib/auth";
 
 const verifySchema = z.object({
   userId: z.string().uuid("Неверный ID пользователя"),
-  code: z.string().length(6, "Код должен содержать 6 цифр"),
+  code: z.string().min(6).max(6, "Код должен содержать 6 цифр"),
 });
 
 export async function POST(request: NextRequest) {

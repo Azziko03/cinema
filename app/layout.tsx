@@ -4,6 +4,7 @@ import "./globals.css";
 import { getLocale } from "./i18n/cookies";
 import { getTranslations } from "./i18n";
 import SessionProvider from "@/components/SessionProvider";
+import { ToastProvider } from "@/components/ToastContainer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,7 +39,9 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SessionProvider>{children}</SessionProvider>
+        <ToastProvider>
+          <SessionProvider>{children}</SessionProvider>
+        </ToastProvider>
       </body>
     </html>
   );

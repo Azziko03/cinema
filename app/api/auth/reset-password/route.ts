@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const resetPasswordSchema = z.object({
   userId: z.string().uuid(),
-  code: z.string().length(6, "Код должен содержать 6 цифр"),
+  code: z.string().min(6).max(6, "Код должен содержать 6 цифр"),
   newPassword: z.string().min(6, "Пароль должен содержать минимум 6 символов"),
 });
 
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: error.issues[0].message },
         { status: 400 }
       );
     }
