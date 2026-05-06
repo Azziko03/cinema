@@ -217,6 +217,7 @@ model Seat {
   rowNumber  Int     @map("row_number")
   seatNumber Int     @map("seat_number")
   isActive   Boolean @default(true) @map("is_active")
+  isVip      Boolean @default(false) @map("is_vip")
 
   // Relations
   hall       Hall    @relation(fields: [hallId], references: [id], onDelete: Cascade)
