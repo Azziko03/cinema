@@ -275,6 +275,7 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
                     onChange={(e) =>
                       setFormData({ ...formData, rows: e.target.value })
                     }
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder="10"
                     min="1"
                     max="20"
@@ -292,6 +293,7 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
                     onChange={(e) =>
                       setFormData({ ...formData, seatsPerRow: e.target.value })
                     }
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder="12"
                     min="1"
                     max="30"
@@ -398,13 +400,13 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
           ) : (
             <div className="space-y-6">
               {/* Экран с эффектом перспективы */}
-              <div className="relative w-full overflow-hidden pt-2 pb-6">
+              <div className="relative w-full overflow-hidden pt-8 pb-20">
                 <div 
-                  className="w-full h-12 bg-black rounded mx-auto relative overflow-hidden"
+                  className="w-full h-20 bg-black rounded mx-auto relative overflow-hidden"
                   style={{
-                    transform: 'perspective(400px) rotateX(-40deg)',
+                    transform: 'perspective(800px) rotateX(-60deg)',
                     transformOrigin: 'center top',
-                    boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
                   }}
                 >
                   <video
@@ -418,23 +420,23 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
                     className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1/2 h-full object-cover pointer-events-none"
                   />
                 </div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider text-center mt-1">
+                <p className="text-xs text-gray-500 uppercase tracking-wider text-center mt-4">
                   Экран
                 </p>
               </div>
 
               {/* Места */}
-              <div className="overflow-x-auto p-3 bg-gray-900/50 rounded-lg">
-                <div className="flex flex-col items-center gap-1 min-w-max">
+              <div className="overflow-auto max-h-[500px] pr-2 custom-scrollbar">
+                <div className="flex flex-col items-center gap-3">
                   {rows.map((rowNum) => (
                     <div key={rowNum} className="flex items-center gap-2">
                       {/* Номер ряда */}
-                      <div className="w-6 text-center text-xs font-medium text-gray-400">
+                      <div className="w-8 text-center text-sm font-medium text-gray-400">
                         {rowNum}
                       </div>
 
                       {/* Места в ряду */}
-                      <div className="flex gap-0.5">
+                      <div className="flex gap-2">
                         {seatsByRow[rowNum]
                           .sort((a, b) => a.seat - b.seat)
                           .map((seat) => (
@@ -462,8 +464,8 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
                               
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
+                                width="24"
+                                height="24"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke={
@@ -492,12 +494,12 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
               </div>
 
               {/* Легенда */}
-              <div className="flex items-center justify-center gap-4 pt-3 mt-3 border-t border-gray-700">
-                <div className="flex items-center gap-1">
+              <div className="flex items-center justify-center gap-4 pt-4 mt-4 border-t border-gray-700">
+                <div className="flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
+                    width="20"
+                    height="20"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="rgb(34 197 94)"
@@ -510,13 +512,13 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
                     <path d="M5 18v2" />
                     <path d="M19 18v2" />
                   </svg>
-                  <span className="text-xs text-gray-400">Обычное</span>
+                  <span className="text-sm text-gray-400">Обычное</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
+                    width="20"
+                    height="20"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="rgb(234 179 8)"
@@ -529,13 +531,13 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
                     <path d="M5 18v2" />
                     <path d="M19 18v2" />
                   </svg>
-                  <span className="text-xs text-gray-400">VIP</span>
+                  <span className="text-sm text-gray-400">VIP</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
+                    width="20"
+                    height="20"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="rgb(139 139 139)"
@@ -548,20 +550,20 @@ export default function EditHallClient({ hall }: EditHallClientProps) {
                     <path d="M5 18v2" />
                     <path d="M19 18v2" />
                   </svg>
-                  <span className="text-xs text-gray-400">Неактивное</span>
+                  <span className="text-sm text-gray-400">Неактивное</span>
                 </div>
               </div>
 
               {/* Инструкции */}
               {isMapGenerated && (
-                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg mt-3">
+                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg mt-4">
                   <p className="text-sm text-blue-400 mb-1">
                     <strong>Как использовать:</strong>
                   </p>
-                  <p className="text-xs text-blue-300 mb-1">
+                  <p className="text-sm text-blue-300 mb-1">
                     • <strong>Одинарный клик</strong> - деактивировать/активировать место
                   </p>
-                  <p className="text-xs text-blue-300">
+                  <p className="text-sm text-blue-300">
                     • <strong>Двойной клик</strong> - сделать место VIP (желтое)
                   </p>
                 </div>

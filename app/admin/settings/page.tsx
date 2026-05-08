@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import S3CleanupManager from "@/components/S3CleanupManager";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
@@ -9,6 +10,7 @@ export default function SettingsPage() {
     { id: "general", name: "Общие", nameKg: "Жалпы" },
     { id: "appearance", name: "Внешний вид", nameKg: "Көрүнүш" },
     { id: "localization", name: "Локализация", nameKg: "Локализация" },
+    { id: "storage", name: "Хранилище", nameKg: "Сактагыч" },
     { id: "seo", name: "SEO", nameKg: "SEO" },
   ];
 
@@ -183,6 +185,12 @@ export default function SettingsPage() {
                   <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
                 </select>
               </div>
+            </div>
+          )}
+
+          {activeTab === "storage" && (
+            <div className="space-y-6">
+              <S3CleanupManager />
             </div>
           )}
 

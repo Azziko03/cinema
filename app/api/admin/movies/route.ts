@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteFileFromS3ByUrl } from "@/lib/s3";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +22,6 @@ export async function POST(request: NextRequest) {
       releaseDate,
       country,
       year,
-      rating,
       posterUrl,
       trailerUrl,
     } = body;
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
           create: {
             country,
             year: parseInt(year),
-            imdbRating: rating ? parseFloat(rating) : 5.0,
+            imdbRating: 5.0, // Автоматически устанавливаем рейтинг 5.0
             kinopoiskRating: null,
           },
         },
@@ -195,9 +195,37 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Получаем файлы фильма для удаления из S3
+    const movieWithFiles = await prisma.movie.findUnique({
+      where: { id },
+      include: {
+        mediaFiles: true,
+      },
+    });
+
+    if (!movieWithFiles) {
+      return NextResponse.json({ error: "Фильм не найден" }, { status: 404 });
+    }
+
+    // Удаляем фильм из базы данных
     await prisma.movie.delete({
       where: { id },
     });
+
+    // Удаляем файлы из S3 (в фоновом режиме)
+    if (movieWithFiles.mediaFiles.length > 0) {
+      Promise.all(
+        movieWithFiles.mediaFiles.map(async (file) => {
+          try {
+            await deleteFileFromS3ByUrl(file.url);
+          } catch (error) {
+            console.error(`Failed to delete file from S3: ${file.url}`, error);
+          }
+        })
+      ).catch(error => {
+        console.error("Error deleting movie files from S3:", error);
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

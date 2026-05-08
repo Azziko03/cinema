@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface CarouselProps {
   translations: any
@@ -9,6 +10,7 @@ interface CarouselProps {
 
 export default function Carousel({ translations }: CarouselProps) {
   const [current, setCurrent] = useState(0)
+  const router = useRouter()
   const t = translations.carousel
 
   const slides = [
@@ -49,6 +51,10 @@ export default function Carousel({ translations }: CarouselProps) {
 
   const scrollToContent = () => {
     window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })
+  }
+
+  const handleLoginClick = () => {
+    router.push('/auth/signup')
   }
 
   return (
@@ -157,7 +163,10 @@ export default function Carousel({ translations }: CarouselProps) {
 
         {/* CTA Button */}
         <div className="pt-6">
-          <button className="group inline-flex items-center gap-3 px-10 md:px-14 py-4 md:py-6 bg-white text-black hover:bg-gray-100 rounded-full transition-all transform hover:scale-105 shadow-2xl">
+          <button 
+            onClick={handleLoginClick}
+            className="group inline-flex items-center gap-3 px-10 md:px-14 py-4 md:py-6 bg-white text-black hover:bg-gray-100 rounded-full transition-all transform hover:scale-105 shadow-2xl"
+          >
             <span className="text-lg md:text-xl lg:text-2xl font-semibold">{t.cta}</span>
           </button>
         </div>

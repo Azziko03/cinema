@@ -254,6 +254,7 @@ export default function CreateHallClient() {
                     onChange={(e) =>
                       setFormData({ ...formData, rows: e.target.value })
                     }
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder="10"
                     min="1"
                     max="20"
@@ -272,6 +273,7 @@ export default function CreateHallClient() {
                     onChange={(e) =>
                       setFormData({ ...formData, seatsPerRow: e.target.value })
                     }
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder="12"
                     min="1"
                     max="30"
@@ -391,13 +393,13 @@ export default function CreateHallClient() {
           ) : (
             <div className="space-y-6">
               {/* Экран с эффектом перспективы */}
-              <div className="relative w-full overflow-hidden pt-2 pb-6">
+              <div className="relative w-full overflow-hidden pt-4 pb-8">
                 <div 
-                  className="w-full h-12 bg-black rounded mx-auto relative overflow-hidden"
+                  className="w-full h-16 bg-black rounded mx-auto relative overflow-hidden"
                   style={{
-                    transform: 'perspective(400px) rotateX(-40deg)',
+                    transform: 'perspective(600px) rotateX(-50deg)',
                     transformOrigin: 'center top',
-                    boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+                    boxShadow: '0 15px 30px rgba(0,0,0,0.4)',
                   }}
                 >
                   <video
@@ -411,86 +413,115 @@ export default function CreateHallClient() {
                     className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1/2 h-full object-cover pointer-events-none"
                   />
                 </div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider text-center mt-1">
+                <p className="text-xs text-gray-500 uppercase tracking-wider text-center mt-2">
                   Экран
                 </p>
               </div>
 
               {/* Места */}
-              <div className="p-3 bg-gray-900/50 rounded-lg">
-                <div className="flex flex-col items-center gap-1">
-                  {rows.map((rowNum) => (
-                    <div key={rowNum} className="flex items-center gap-2">
-                      {/* Номер ряда */}
-                      <div className="w-6 text-center text-xs font-medium text-gray-400">
-                        {rowNum}
-                      </div>
+              <div className="overflow-x-auto overflow-y-auto max-h-[500px] p-6 bg-gray-900/50 rounded-lg custom-scrollbar">
+                <div className="flex flex-col items-center gap-3 min-w-max">
+                  {(() => {
+                    // Находим максимальное количество мест во всех рядах для создания единой сетки
+                    const maxSeatsInAnyRow = Math.max(
+                      ...Object.values(seatsByRow).map(seats => 
+                        Math.max(...seats.map(s => s.seat))
+                      )
+                    );
 
-                      {/* Места в ряду */}
-                      <div className="flex gap-0">
-                        {seatsByRow[rowNum]
-                          .sort((a, b) => a.seat - b.seat)
-                          .map((seat) => (
-                            <button
-                              key={`${seat.row}-${seat.seat}`}
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                toggleSeat(seat.row, seat.seat);
-                              }}
-                              onDoubleClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                toggleVipSeat(seat.row, seat.seat);
-                              }}
-                              className="relative group transition-all cursor-pointer"
-                            >
-                              {/* Tooltip */}
-                              <div className={`absolute ${seat.row === 1 ? '-bottom-8' : '-top-8'} left-1/2 -translate-x-1/2 bg-gray-700 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg pointer-events-none`}>
-                                Ряд {seat.row} - Место {seat.seat}
-                                {seat.isVip && <span className="text-yellow-400 ml-1">(VIP)</span>}
-                                <div className={`absolute ${seat.row === 1 ? '-top-1' : '-bottom-1'} left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-700 rotate-45`}></div>
-                              </div>
+                    return rows.map((rowNum) => {
+                      // Создаем полную сетку для этого ряда
+                      const seatGrid = Array.from({ length: maxSeatsInAnyRow }, (_, index) => {
+                        const seatNumber = index + 1;
+                        return seatsByRow[rowNum].find(s => s.seat === seatNumber) || null;
+                      });
+
+                      return (
+                        <div key={rowNum} className="flex items-center gap-4 w-full justify-center">
+                          {/* Номер ряда */}
+                          <div className="w-10 text-center text-sm font-medium text-gray-400 flex-shrink-0">
+                            {rowNum}
+                          </div>
+
+                          {/* Места в ряду с фиксированной сеткой */}
+                          <div className="flex gap-2">
+                            {seatGrid.map((seat, index) => {
+                              const seatNumber = index + 1;
                               
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke={
-                                  !seat.isActive 
-                                    ? "rgb(139 139 139)" 
-                                    : seat.isVip 
-                                      ? "rgb(234 179 8)" 
-                                      : "rgb(34 197 94)"
-                                }
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="transition-all hover:stroke-[rgb(184,184,184)] pointer-events-none"
-                              >
-                                <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3" />
-                                <path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z" />
-                                <path d="M5 18v2" />
-                                <path d="M19 18v2" />
-                              </svg>
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
+                              if (!seat) {
+                                // Пустое место (не создано) - невидимый placeholder
+                                return (
+                                  <div
+                                    key={`empty-${rowNum}-${seatNumber}`}
+                                    className="w-[24px] h-[24px]"
+                                  />
+                                );
+                              }
+
+                              return (
+                                <button
+                                  key={`${seat.row}-${seat.seat}`}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleSeat(seat.row, seat.seat);
+                                  }}
+                                  onDoubleClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleVipSeat(seat.row, seat.seat);
+                                  }}
+                                  className="relative group transition-all cursor-pointer"
+                                >
+                                  {/* Tooltip */}
+                                  <div className={`absolute ${seat.row === 1 ? '-bottom-10' : '-top-10'} left-1/2 -translate-x-1/2 bg-gray-700 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg pointer-events-none`}>
+                                    Ряд {seat.row} - Место {seat.seat}
+                                    {seat.isVip && <span className="text-yellow-400 ml-1">(VIP)</span>}
+                                    <div className={`absolute ${seat.row === 1 ? '-top-1' : '-bottom-1'} left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-700 rotate-45`}></div>
+                                  </div>
+                                  
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke={
+                                      !seat.isActive 
+                                        ? "rgb(139 139 139)" 
+                                        : seat.isVip 
+                                          ? "rgb(234 179 8)" 
+                                          : "rgb(34 197 94)"
+                                    }
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="transition-all hover:scale-110 pointer-events-none"
+                                  >
+                                    <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3" />
+                                    <path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z" />
+                                    <path d="M5 18v2" />
+                                    <path d="M19 18v2" />
+                                  </svg>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 
               {/* Легенда */}
-              <div className="flex items-center justify-center gap-4 pt-3 mt-3 border-t border-gray-700">
-                <div className="flex items-center gap-1">
+              <div className="flex items-center justify-center gap-6 pt-6 mt-6 border-t border-gray-700 flex-wrap">
+                <div className="flex items-center gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
+                    width="24"
+                    height="24"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="rgb(34 197 94)"
@@ -503,13 +534,13 @@ export default function CreateHallClient() {
                     <path d="M5 18v2" />
                     <path d="M19 18v2" />
                   </svg>
-                  <span className="text-xs text-gray-400">Обычное</span>
+                  <span className="text-sm text-gray-400">Обычное</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
+                    width="24"
+                    height="24"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="rgb(234 179 8)"
@@ -522,13 +553,13 @@ export default function CreateHallClient() {
                     <path d="M5 18v2" />
                     <path d="M19 18v2" />
                   </svg>
-                  <span className="text-xs text-gray-400">VIP</span>
+                  <span className="text-sm text-gray-400">VIP</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
+                    width="24"
+                    height="24"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="rgb(139 139 139)"
@@ -541,20 +572,20 @@ export default function CreateHallClient() {
                     <path d="M5 18v2" />
                     <path d="M19 18v2" />
                   </svg>
-                  <span className="text-xs text-gray-400">Неактивное</span>
+                  <span className="text-sm text-gray-400">Неактивное</span>
                 </div>
               </div>
 
               {/* Инструкции */}
               {isMapGenerated && (
-                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg mt-3">
+                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                   <p className="text-sm text-blue-400 mb-1">
                     <strong>Как использовать:</strong>
                   </p>
-                  <p className="text-xs text-blue-300 mb-1">
+                  <p className="text-sm text-blue-300 mb-1">
                     • <strong>Одинарный клик</strong> - деактивировать/активировать место
                   </p>
-                  <p className="text-xs text-blue-300">
+                  <p className="text-sm text-blue-300">
                     • <strong>Двойной клик</strong> - сделать место VIP (желтое)
                   </p>
                 </div>

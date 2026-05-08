@@ -18,6 +18,8 @@ interface Movie {
     description: string;
   }>;
   metadata: {
+    country: string;
+    year: number;
     imdbRating: number | null;
     kinopoiskRating: number | null;
   } | null;
@@ -62,7 +64,6 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
     releaseDate: "",
     country: "",
     year: "",
-    rating: "5.0",
   });
 
   const [posterFile, setPosterFile] = useState<File | null>(null);
@@ -70,6 +71,12 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
   const [posterPreview, setPosterPreview] = useState<string>("");
   const [isDraggingPoster, setIsDraggingPoster] = useState(false);
   const [isDraggingTrailer, setIsDraggingTrailer] = useState(false);
+
+  // Новые состояния для S3 загрузки
+  const [posterUrl, setPosterUrl] = useState<string>("");
+  const [trailerUrl, setTrailerUrl] = useState<string>("");
+  const [posterKey, setPosterKey] = useState<string>("");
+  const [trailerKey, setTrailerKey] = useState<string>("");
 
   const genres = [
     "Боевик",
@@ -100,6 +107,7 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
     const translation = movie.translations.find((t) => t.language === "RU");
     const genre = movie.genres[0]?.genre.translations.find((t) => t.language === "RU");
     const poster = movie.mediaFiles.find((m) => m.type === "poster");
+    const trailer = movie.mediaFiles.find((m) => m.type === "trailer");
 
     setFormData({
       title: translation?.title || "",
@@ -112,11 +120,18 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
       releaseDate: new Date(movie.releaseDate).toISOString().split("T")[0],
       country: movie.metadata?.country || "",
       year: movie.metadata?.year.toString() || "",
-      rating: (movie.metadata?.imdbRating || 5.0).toString(),
     });
+    
+    // Устанавливаем URL файлов для отображения
+    setPosterUrl(poster?.url || "");
+    setTrailerUrl(trailer?.url || "");
     setPosterPreview(poster?.url || "");
+    
+    // Сбрасываем локальные файлы
     setPosterFile(null);
     setTrailerFile(null);
+    setPosterKey("");
+    setTrailerKey("");
   };
 
   // Сброс формы
@@ -132,11 +147,14 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
       releaseDate: "",
       country: "",
       year: "",
-      rating: "5.0",
     });
     setPosterFile(null);
     setTrailerFile(null);
     setPosterPreview("");
+    setPosterUrl("");
+    setTrailerUrl("");
+    setPosterKey("");
+    setTrailerKey("");
   };
 
   const handleInputChange = (
@@ -146,48 +164,49 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Обработчики для S3 загрузки
+  const handlePosterUpload = (url: string, key: string) => {
+    console.log("MoviesClient: Poster upload success", { url, key });
+    setPosterUrl(url);
+    setPosterKey(key);
+    setPosterPreview(url);
+    showToast("Постер успешно загружен", "success");
+  };
+
+  const handleTrailerUpload = (url: string, key: string) => {
+    console.log("MoviesClient: Trailer upload success", { url, key });
+    setTrailerUrl(url);
+    setTrailerKey(key);
+    showToast("Трейлер успешно загружен", "success");
+  };
+
+  const handlePosterRemove = () => {
+    setPosterUrl("");
+    setPosterKey("");
+    setPosterPreview("");
+  };
+
+  const handleTrailerRemove = () => {
+    setTrailerUrl("");
+    setTrailerKey("");
+  };
+
   // Обработка drag and drop для постера
   const handlePosterDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingPoster(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("image/")) {
-      setPosterFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPosterPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    // Удалено - теперь обрабатывается в FileUpload компоненте
   };
 
   const handlePosterSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPosterFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPosterPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    // Удалено - теперь обрабатывается в FileUpload компоненте
   };
 
   // Обработка drag and drop для трейлера
   const handleTrailerDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingTrailer(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("video/")) {
-      setTrailerFile(file);
-    }
+    // Удалено - теперь обрабатывается в FileUpload компоненте
   };
 
   const handleTrailerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setTrailerFile(file);
-    }
+    // Удалено - теперь обрабатывается в FileUpload компоненте
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -195,8 +214,12 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
     setIsLoading(true);
 
     try {
-      const posterUrl = posterPreview || "";
-      const trailerUrl = trailerFile ? URL.createObjectURL(trailerFile) : "";
+      // Проверяем наличие постера
+      if (!posterUrl) {
+        showToast("Постер обязателен для заполнения", "error");
+        setIsLoading(false);
+        return;
+      }
 
       const finalGenre = formData.genre === "Другое" ? formData.customGenre : formData.genre;
 
@@ -242,7 +265,7 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
 
   const getPosterUrl = (movie: Movie) => {
     const poster = movie.mediaFiles.find((m) => m.type === "poster");
-    return poster?.url || "/placeholder.jpg";
+    return poster?.url || "/placeholder.svg";
   };
 
   const getTitle = (movie: Movie, lang: string = "RU") => {
@@ -460,6 +483,13 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
           setPosterFile={setPosterFile}
           setPosterPreview={setPosterPreview}
           setTrailerFile={setTrailerFile}
+          // Новые пропсы для S3 загрузки
+          posterUrl={posterUrl}
+          trailerUrl={trailerUrl}
+          onPosterUpload={handlePosterUpload}
+          onTrailerUpload={handleTrailerUpload}
+          onPosterRemove={handlePosterRemove}
+          onTrailerRemove={handleTrailerRemove}
         />
       </Modal>
       {/* View Movie Modal */}
@@ -623,6 +653,13 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
           setPosterFile={setPosterFile}
           setPosterPreview={setPosterPreview}
           setTrailerFile={setTrailerFile}
+          // Новые пропсы для S3 загрузки
+          posterUrl={posterUrl}
+          trailerUrl={trailerUrl}
+          onPosterUpload={handlePosterUpload}
+          onTrailerUpload={handleTrailerUpload}
+          onPosterRemove={handlePosterRemove}
+          onTrailerRemove={handleTrailerRemove}
         />
       </Modal>
       {/* Delete Confirmation Modal */}

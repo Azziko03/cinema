@@ -66,7 +66,7 @@ export default function Modal({ isOpen, onClose, title, children, size = "md", f
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto flex-1">
+        <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
           {children}
         </div>
         

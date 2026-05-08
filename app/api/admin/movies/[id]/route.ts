@@ -1,6 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteFileFromS3ByUrl } from "@/lib/s3";
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+
+    if (!session?.user || session.user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { status } = body;
+
+    // Валидация статуса
+    if (!status || !["now_showing", "coming_soon", "archived"].includes(status)) {
+      return NextResponse.json(
+        { error: "Некорректный статус" },
+        { status: 400 }
+      );
+    }
+
+    // Проверяем существование фильма
+    const existingMovie = await prisma.movie.findUnique({
+      where: { id },
+    });
+
+    if (!existingMovie) {
+      return NextResponse.json({ error: "Фильм не найден" }, { status: 404 });
+    }
+
+    // Обновляем только статус
+    const movie = await prisma.movie.update({
+      where: { id },
+      data: { status },
+      include: {
+        translations: true,
+        mediaFiles: true,
+      },
+    });
+
+    return NextResponse.json(movie);
+  } catch (error) {
+    console.error("Error updating movie status:", error);
+    return NextResponse.json(
+      { error: "Ошибка при обновлении статуса фильма" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function PUT(
   request: NextRequest,
@@ -26,7 +79,6 @@ export async function PUT(
       releaseDate,
       country,
       year,
-      rating,
       posterUrl,
       trailerUrl,
     } = body;
@@ -61,6 +113,9 @@ export async function PUT(
     if (!existingMovie) {
       return NextResponse.json({ error: "Фильм не найден" }, { status: 404 });
     }
+
+    // Сохраняем старые файлы для удаления из S3
+    const oldMediaFiles = existingMovie.mediaFiles;
 
     // Находим или создаем жанр
     let genreRecord = await prisma.genre.findFirst({
@@ -136,13 +191,13 @@ export async function PUT(
             create: {
               country,
               year: parseInt(year),
-              imdbRating: rating ? parseFloat(rating) : 5.0,
+              imdbRating: 5.0, // При создании новых метаданных ставим 5.0
               kinopoiskRating: null,
             },
             update: {
               country,
               year: parseInt(year),
-              imdbRating: rating ? parseFloat(rating) : 5.0,
+              // При обновлении НЕ изменяем рейтинг, оставляем существующий
             },
           },
         },
@@ -189,6 +244,22 @@ export async function PUT(
         mediaFiles: true,
       },
     });
+
+    // Удаляем старые файлы из S3 (в фоновом режиме)
+    if (oldMediaFiles.length > 0) {
+      // Не ждем завершения удаления, чтобы не замедлять ответ
+      Promise.all(
+        oldMediaFiles.map(async (file) => {
+          try {
+            await deleteFileFromS3ByUrl(file.url);
+          } catch (error) {
+            console.error(`Failed to delete old file from S3: ${file.url}`, error);
+          }
+        })
+      ).catch(error => {
+        console.error("Error deleting old files from S3:", error);
+      });
+    }
 
     return NextResponse.json(movie);
   } catch (error) {

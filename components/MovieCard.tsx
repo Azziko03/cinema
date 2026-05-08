@@ -1,6 +1,7 @@
 'use client'
 
 import { Star, Lock } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface MovieCardProps {
   title: string
@@ -12,6 +13,12 @@ interface MovieCardProps {
 }
 
 export default function MovieCard({ title, genre, rating, price, times }: MovieCardProps) {
+  const router = useRouter()
+
+  const handleLoginClick = () => {
+    router.push('/auth/signup')
+  }
+
   return (
     <div className="movie-card group relative bg-black rounded-lg overflow-hidden cursor-pointer border border-gray-900 w-full">
       {/* Постер */}
@@ -26,7 +33,10 @@ export default function MovieCard({ title, genre, rating, price, times }: MovieC
             <Lock className="w-8 h-8 text-white" />
           </div>
           <p className="text-white text-center font-semibold text-sm">Авторизуйтесь для покупки</p>
-          <button className="px-6 py-2 bg-white text-black rounded-full font-semibold text-sm hover:bg-gray-200 transition-colors">
+          <button 
+            onClick={handleLoginClick}
+            className="px-6 py-2 bg-white text-black rounded-full font-semibold text-sm hover:bg-gray-200 transition-colors"
+          >
             Войти
           </button>
         </div>
