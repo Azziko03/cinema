@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { User, Mail, Calendar, Shield } from "lucide-react";
+import BottomNav from "@/components/BottomNav";
 
 export default async function ProfilePage() {
   const currentUser = await requireAuth();
@@ -40,7 +41,7 @@ export default async function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black py-12 px-4 mb-20 md:mb-0">
       <div className="max-w-4xl mx-auto">
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
           {/* Header */}
@@ -153,6 +154,8 @@ export default async function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

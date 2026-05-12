@@ -19,9 +19,15 @@ export default async function CreateSessionPage() {
     },
   });
 
-  // Получаем залы
+  // Получаем залы с информацией о VIP местах
   const halls = await prisma.hall.findMany({
     orderBy: { name: "asc" },
+    include: {
+      seats: {
+        where: { isVip: true, isActive: true },
+        select: { id: true },
+      },
+    },
   });
 
   return <CreateSessionClient movies={movies} halls={halls} />;

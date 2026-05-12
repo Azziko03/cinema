@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { movieId, hallId, startTime, endTime, basePrice, language, format } = body;
+    const { movieId, hallId, startTime, endTime, basePrice, vipPrice, language, format } = body;
 
     // Валидация
     if (!movieId || !hallId || !startTime || !endTime || !basePrice) {
@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
         hallId,
         startTime: new Date(startTime),
         endTime: new Date(endTime),
-        basePrice,
+        basePrice: String(basePrice),
+        vipPrice: vipPrice ? String(vipPrice) : null,
         language,
         format,
       },

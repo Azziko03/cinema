@@ -39,7 +39,19 @@
   "sessionFilter": {
     "today": "Бүгүн",
     "tomorrow": "Эртең",
-    "searchPlaceholder": "Кино издөө..."
+    "searchPlaceholder": "Кино издөө...",
+    "categories": {
+      "all": "Бардык категориялар",
+      "action": "Боевик",
+      "comedy": "Комедия",
+      "drama": "Драма",
+      "fantasy": "Фантастика",
+      "horror": "Коркунуч",
+      "thriller": "Триллер"
+    },
+    "years": {
+      "all": "Бардык жылдар"
+    }
   },
   "movieRows": {
     "popularToday": "Бүгүн популярдуу",

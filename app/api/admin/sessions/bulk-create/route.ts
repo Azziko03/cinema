@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
             hallId: slot.hallId,
             startTime: new Date(slot.startTime),
             endTime: new Date(slot.endTime),
-            basePrice,
+            basePrice: String(basePrice),
             language,
             format,
           },

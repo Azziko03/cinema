@@ -1,14 +1,12 @@
-import HomeClient from './HomeClient'
-import { getLocale } from '@/app/i18n/cookies'
-import { getTranslations } from '@/app/i18n'
+import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { getLocale } from '@/app/i18n/cookies'
+import MovieDetailClient from './MovieDetailClient'
 
-async function getMoviesWithSessions() {
-  const movies = await prisma.movie.findMany({
-    where: {
-      status: 'now_showing'
-    },
+async function getMovieDetails(id: string) {
+  const movie = await prisma.movie.findUnique({
+    where: { id },
     include: {
       translations: true,
       metadata: true,
@@ -23,16 +21,27 @@ async function getMoviesWithSessions() {
         }
       },
       sessions: {
+        where: {
+          startTime: {
+            gte: new Date()
+          }
+        },
         orderBy: {
           startTime: 'asc'
+        },
+        include: {
+          hall: true
         }
       }
-    },
-    take: 50
+    }
   })
 
+  if (!movie) {
+    return null
+  }
+
   // Сериализуем данные для клиента
-  return movies.map(movie => ({
+  return {
     ...movie,
     metadata: movie.metadata ? {
       ...movie.metadata,
@@ -44,21 +53,19 @@ async function getMoviesWithSessions() {
       basePrice: Number(session.basePrice),
       vipPrice: session.vipPrice ? Number(session.vipPrice) : null,
     }))
-  }))
+  }
 }
 
-export default async function Home() {
-  const locale = await getLocale()
-  const translations = await getTranslations(locale, 'landing')
-  const moviesData = await getMoviesWithSessions()
-  const session = await auth()
+export default async function MovieDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const movie = await getMovieDetails(id)
+  
+  if (!movie) {
+    notFound()
+  }
 
-  return (
-    <HomeClient 
-      moviesData={moviesData} 
-      translations={translations} 
-      locale={locale}
-      session={session}
-    />
-  )
+  const session = await auth()
+  const locale = await getLocale()
+
+  return <MovieDetailClient movie={movie} session={session} locale={locale} />
 }

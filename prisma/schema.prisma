@@ -43,6 +43,7 @@ model User {
   // Relations
   orders        Order[]
   aiChats       AiChat[]
+  ratings       MovieRating[]
 
   @@map("users")
 }
@@ -79,6 +80,7 @@ model Movie {
   persons         MoviePerson[]
   mediaFiles      MediaFile[]
   sessions        Session[]
+  ratings         MovieRating[]
 
   @@map("movies")
 }
@@ -194,6 +196,22 @@ model MediaFile {
   @@map("media_files")
 }
 
+model MovieRating {
+  id        String   @id @default(uuid()) @db.Uuid
+  movieId   String   @map("movie_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  rating    Int      @db.Integer
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([movieId, userId])
+  @@map("movie_ratings")
+}
+
 // ============================================
 // 🎭 CINEMA
 // ============================================
@@ -245,6 +263,7 @@ model Session {
   startTime DateTime        @map("start_time") @db.Timestamp(6)
   endTime   DateTime        @map("end_time") @db.Timestamp(6)
   basePrice Decimal         @map("base_price") @db.Decimal(10, 2)
+  vipPrice  Decimal?        @map("vip_price") @db.Decimal(10, 2)
   language  SessionLanguage
   format    SessionFormat
 

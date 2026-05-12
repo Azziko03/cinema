@@ -5,20 +5,22 @@ import { useRef } from 'react'
 import MovieCard from './MovieCard'
 
 interface Movie {
-  id: number
+  id: string
   title: string
   genre: string
   rating: number
   price: number
   times: string[]
+  image?: string
 }
 
 interface MovieRowProps {
   title: string
   movies: Movie[]
+  isAuthenticated?: boolean
 }
 
-export default function MovieRow({ title, movies }: MovieRowProps) {
+export default function MovieRow({ title, movies, isAuthenticated = false }: MovieRowProps) {
   const rowRef = useRef<HTMLDivElement>(null)
 
   const scroll = (direction: 'left' | 'right') => {
@@ -50,11 +52,14 @@ export default function MovieRow({ title, movies }: MovieRowProps) {
           {movies.map((movie) => (
             <div key={movie.id} className="flex-none w-[220px] md:w-[280px] lg:w-[320px]">
               <MovieCard
+                movieId={movie.id}
                 title={movie.title}
                 genre={movie.genre}
                 rating={movie.rating}
                 price={movie.price}
                 times={movie.times}
+                image={movie.image}
+                isAuthenticated={isAuthenticated}
               />
             </div>
           ))}

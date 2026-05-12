@@ -34,6 +34,7 @@ interface Session {
   startTime: Date;
   endTime: Date;
   basePrice: number;
+  vipPrice?: number;
   language: string;
   format: string;
   movie: Movie;
@@ -502,8 +503,15 @@ export default function SessionsClient({
                       </p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium">
-                    {Number(session.basePrice)} сом
+                  <td className="px-6 py-4 text-sm">
+                    <div className="space-y-1">
+                      <p className="font-medium">{Number(session.basePrice)} сом</p>
+                      {session.seatsInfo.vipSeatsTotal > 0 && session.vipPrice && (
+                        <p className="text-xs text-yellow-500">
+                          VIP: {Number(session.vipPrice)} сом
+                        </p>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="space-y-2">
@@ -583,12 +591,12 @@ export default function SessionsClient({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleEdit(session)}
+                    <Link
+                      href={`/admin/sessions/${session.id}/edit`}
                       className="text-blue-400 hover:text-blue-300 mr-3"
                     >
                       Изменить
-                    </button>
+                    </Link>
                     <button
                       onClick={() => handleDeleteClick(session)}
                       className="text-red-400 hover:text-red-300"

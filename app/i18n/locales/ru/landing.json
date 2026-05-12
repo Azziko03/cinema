@@ -39,7 +39,19 @@
   "sessionFilter": {
     "today": "Сегодня",
     "tomorrow": "Завтра",
-    "searchPlaceholder": "Поиск фильма..."
+    "searchPlaceholder": "Поиск фильма...",
+    "categories": {
+      "all": "Все категории",
+      "action": "Боевик",
+      "comedy": "Комедия",
+      "drama": "Драма",
+      "fantasy": "Фантастика",
+      "horror": "Ужасы",
+      "thriller": "Триллер"
+    },
+    "years": {
+      "all": "Все годы"
+    }
   },
   "movieRows": {
     "popularToday": "Популярные сегодня",

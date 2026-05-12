@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function PUT(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { movieId, hallId, startTime, endTime, basePrice, language, format } = body;
+    const { movieId, hallId, startTime, endTime, basePrice, vipPrice, language, format } = body;
 
     // Валидация
     if (!movieId || !hallId || !startTime || !endTime || !basePrice) {
@@ -87,18 +88,48 @@ export async function PUT(
       );
     }
 
-    // Обновляем сеанс
-    const updatedSession = await prisma.session.update({
+    // Маппинг формата для базы данных
+    const formatMap: Record<string, string> = {
+      'TWO_D': '2D',
+      'THREE_D': '3D',
+      'IMAX': 'IMAX'
+    };
+    const dbFormat = formatMap[format] || format;
+
+    // Обновляем сеанс с использованием executeRaw для обновления внешних ключей
+    if (vipPrice) {
+      await prisma.$executeRaw`
+        UPDATE sessions 
+        SET 
+          movie_id = ${movieId}::uuid,
+          hall_id = ${hallId}::uuid,
+          start_time = ${new Date(startTime)},
+          end_time = ${new Date(endTime)},
+          base_price = ${String(basePrice)}::decimal,
+          vip_price = ${String(vipPrice)}::decimal,
+          language = ${language}::"SessionLanguage",
+          format = ${dbFormat}::"SessionFormat"
+        WHERE id = ${id}::uuid
+      `;
+    } else {
+      await prisma.$executeRaw`
+        UPDATE sessions 
+        SET 
+          movie_id = ${movieId}::uuid,
+          hall_id = ${hallId}::uuid,
+          start_time = ${new Date(startTime)},
+          end_time = ${new Date(endTime)},
+          base_price = ${String(basePrice)}::decimal,
+          vip_price = NULL,
+          language = ${language}::"SessionLanguage",
+          format = ${dbFormat}::"SessionFormat"
+        WHERE id = ${id}::uuid
+      `;
+    }
+
+    // Получаем обновленный сеанс
+    const updatedSession = await prisma.session.findUnique({
       where: { id },
-      data: {
-        movieId,
-        hallId,
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        basePrice,
-        language,
-        format,
-      },
       include: {
         movie: {
           include: {
@@ -110,6 +141,10 @@ export async function PUT(
       },
     });
 
+    // Очищаем кеш для главной страницы и страницы сеансов
+    revalidatePath('/');
+    revalidatePath('/admin/sessions');
+
     return NextResponse.json(updatedSession);
   } catch (error) {
     console.error("Error updating session:", error);
@@ -118,4 +153,11 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, { params });
 }

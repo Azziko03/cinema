@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation'
 
 interface CarouselProps {
   translations: any
+  isAuthenticated?: boolean
 }
 
-export default function Carousel({ translations }: CarouselProps) {
+export default function Carousel({ translations, isAuthenticated = false }: CarouselProps) {
   const [current, setCurrent] = useState(0)
   const router = useRouter()
   const t = translations.carousel
@@ -162,14 +163,16 @@ export default function Carousel({ translations }: CarouselProps) {
         </p>
 
         {/* CTA Button */}
-        <div className="pt-6">
-          <button 
-            onClick={handleLoginClick}
-            className="group inline-flex items-center gap-3 px-10 md:px-14 py-4 md:py-6 bg-white text-black hover:bg-gray-100 rounded-full transition-all transform hover:scale-105 shadow-2xl"
-          >
-            <span className="text-lg md:text-xl lg:text-2xl font-semibold">{t.cta}</span>
-          </button>
-        </div>
+        {!isAuthenticated && (
+          <div className="pt-6">
+            <button 
+              onClick={handleLoginClick}
+              className="group inline-flex items-center gap-3 px-10 md:px-14 py-4 md:py-6 bg-white text-black hover:bg-gray-100 rounded-full transition-all transform hover:scale-105 shadow-2xl"
+            >
+              <span className="text-lg md:text-xl lg:text-2xl font-semibold">{t.cta}</span>
+            </button>
+          </div>
+        )}
 
         {/* Indicators */}
         <div className="flex items-center justify-center gap-2.5 pt-10">

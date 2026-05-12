@@ -4,42 +4,64 @@ import { Star, Lock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface MovieCardProps {
+  movieId?: string
   title: string
   genre: string
   rating: number
   price: number
   times: string[]
   image?: string
+  isAuthenticated?: boolean
 }
 
-export default function MovieCard({ title, genre, rating, price, times }: MovieCardProps) {
+export default function MovieCard({ movieId, title, genre, rating, price, times, image, isAuthenticated = false }: MovieCardProps) {
   const router = useRouter()
 
-  const handleLoginClick = () => {
+  const handleLoginClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     router.push('/auth/signup')
   }
 
+  const handleCardClick = () => {
+    if (movieId) {
+      router.push(`/movies/${movieId}`)
+    }
+  }
+
   return (
-    <div className="movie-card group relative bg-black rounded-lg overflow-hidden cursor-pointer border border-gray-900 w-full">
+    <div 
+      onClick={handleCardClick}
+      className="movie-card group relative bg-black rounded-lg overflow-hidden cursor-pointer border border-gray-900 w-full"
+    >
       {/* Постер */}
       <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-900 to-black">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-7xl opacity-20">🎬</div>
-        </div>
-        
-        {/* Hover Overlay - Авторизация */}
-        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 p-4">
-          <div className="w-16 h-16 rounded-full bg-[#e50914] flex items-center justify-center">
-            <Lock className="w-8 h-8 text-white" />
+        {image ? (
+          <img 
+            src={image} 
+            alt={title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-7xl opacity-20">🎬</div>
           </div>
-          <p className="text-white text-center font-semibold text-sm">Авторизуйтесь для покупки</p>
-          <button 
-            onClick={handleLoginClick}
-            className="px-6 py-2 bg-white text-black rounded-full font-semibold text-sm hover:bg-gray-200 transition-colors"
-          >
-            Войти
-          </button>
-        </div>
+        )}
+        
+        {/* Hover Overlay - Авторизация (только для неавторизованных) */}
+        {!isAuthenticated && (
+          <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 p-4">
+            <div className="w-16 h-16 rounded-full bg-[#e50914] flex items-center justify-center">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+            <p className="text-white text-center font-semibold text-sm">Авторизуйтесь для покупки</p>
+            <button 
+              onClick={handleLoginClick}
+              className="px-6 py-2 bg-white text-black rounded-full font-semibold text-sm hover:bg-gray-200 transition-colors"
+            >
+              Войти
+            </button>
+          </div>
+        )}
 
         {/* Рейтинг */}
         <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/80 backdrop-blur-sm px-2.5 py-1.5 rounded">
@@ -64,13 +86,17 @@ export default function MovieCard({ title, genre, rating, price, times }: MovieC
           {times.slice(0, 3).map((time, index) => (
             <button
               key={index}
+              onClick={(e) => e.stopPropagation()}
               className="px-3 py-1.5 text-xs rounded bg-[#1a1a1a] hover:bg-[#2a2a2a] transition-colors border border-gray-900"
             >
               {time}
             </button>
           ))}
           {times.length > 3 && (
-            <button className="px-3 py-1.5 text-xs rounded bg-[#1a1a1a] hover:bg-[#2a2a2a] transition-colors border border-gray-900">
+            <button 
+              onClick={(e) => e.stopPropagation()}
+              className="px-3 py-1.5 text-xs rounded bg-[#1a1a1a] hover:bg-[#2a2a2a] transition-colors border border-gray-900"
+            >
               +{times.length - 3}
             </button>
           )}

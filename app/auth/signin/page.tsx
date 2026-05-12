@@ -40,7 +40,7 @@ export default function SignInPage() {
           setError("Администраторы не могут входить через эту страницу. Используйте /admin/login");
           await fetch("/api/auth/signout", { method: "POST" });
         } else {
-          router.push("/profile");
+          router.push("/");
           router.refresh();
         }
       }
@@ -54,7 +54,7 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/profile" });
+      await signIn("google", { callbackUrl: "/" });
     } catch (err) {
       setError("Ошибка при входе через Google");
       setLoading(false);
