@@ -81,8 +81,8 @@ export default function RatingSection({
     }
   }
 
-  // Вычисляем количество звезд (из 10 делаем из 5)
-  const starRating = averageRating / 2
+  // Вычисляем процент заполнения звезды (из 10)
+  const fillPercentage = (averageRating / 10) * 100
 
   return (
     <div className="mb-12">
@@ -91,22 +91,23 @@ export default function RatingSection({
       {/* Mobile Version */}
       <div className="lg:hidden px-4">
         <div className="space-y-6">
-          {/* Текущий рейтинг */}
+          {/* Текущий рейтинг - одна большая звезда */}
           <div className="text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="relative w-32 h-32">
+                {/* Фоновая звезда (серая) */}
+                <Star className="absolute inset-0 w-full h-full text-gray-600" />
+                {/* Заполненная звезда (желтая) */}
+                <div 
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ clipPath: `inset(0 ${100 - fillPercentage}% 0 0)` }}
+                >
+                  <Star className="w-full h-full text-yellow-400 fill-yellow-400" />
+                </div>
+              </div>
+            </div>
             <div className="text-5xl font-bold mb-2" suppressHydrationWarning>
               {averageRating > 0 ? averageRating.toFixed(1) : '—'}
-            </div>
-            <div className="flex items-center justify-center gap-1 mb-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={`w-5 h-5 ${
-                    star <= Math.round(starRating)
-                      ? 'text-yellow-400 fill-yellow-400'
-                      : 'text-gray-600'
-                  }`}
-                />
-              ))}
             </div>
             <p className="text-gray-400 text-sm" suppressHydrationWarning>
               {totalVotes > 0 ? `${totalVotes} ${totalVotes === 1 ? 'голос' : totalVotes < 5 ? 'голоса' : 'голосов'}` : 'Нет оценок'}
@@ -159,21 +160,13 @@ export default function RatingSection({
             )}
           </div>
 
-          {/* Внешние рейтинги */}
-          {(imdbRating || kinopoiskRating) && (
-            <div className="flex justify-center gap-6 pt-4 border-t border-gray-800">
-              {imdbRating && (
-                <div className="text-center">
-                  <div className="text-yellow-400 font-bold text-sm mb-1">IMDb</div>
-                  <div className="text-2xl font-semibold">{imdbRating.toFixed(1)}</div>
-                </div>
-              )}
-              {kinopoiskRating && (
-                <div className="text-center">
-                  <div className="text-orange-400 font-bold text-sm mb-1">Кинопоиск</div>
-                  <div className="text-2xl font-semibold">{kinopoiskRating.toFixed(1)}</div>
-                </div>
-              )}
+          {/* Внешние рейтинги - только Кинопоиск */}
+          {kinopoiskRating && (
+            <div className="flex justify-center pt-4 border-t border-gray-800">
+              <div className="text-center">
+                <div className="text-orange-400 font-bold text-sm mb-1">Кинопоиск</div>
+                <div className="text-2xl font-semibold">{kinopoiskRating.toFixed(1)}</div>
+              </div>
             </div>
           )}
         </div>
@@ -181,59 +174,39 @@ export default function RatingSection({
 
       {/* Desktop Version */}
       <div className="hidden lg:block">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Левая часть - Средний рейтинг */}
-          <div className="space-y-6">
-            {/* Основной рейтинг */}
+        {/* Основной рейтинг - одна большая звезда по центру */}
+        <div className="flex flex-col items-center justify-center mb-8">
+          <div className="flex items-center gap-6">
+            <div className="relative w-24 h-24 flex-shrink-0">
+              {/* Фоновая звезда (серая) */}
+              <Star className="absolute inset-0 w-full h-full text-gray-600" />
+              {/* Заполненная звезда (желтая) */}
+              <div 
+                className="absolute inset-0 overflow-hidden"
+                style={{ clipPath: `inset(0 ${100 - fillPercentage}% 0 0)` }}
+              >
+                <Star className="w-full h-full text-yellow-400 fill-yellow-400" />
+              </div>
+            </div>
             <div>
               <div className="text-6xl font-bold mb-2" suppressHydrationWarning>
                 {averageRating > 0 ? averageRating.toFixed(1) : '—'}
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`w-6 h-6 ${
-                      star <= Math.round(starRating)
-                        ? 'text-yellow-400 fill-yellow-400'
-                        : 'text-gray-600'
-                    }`}
-                  />
-                ))}
               </div>
               <p className="text-gray-400" suppressHydrationWarning>
                 {totalVotes > 0 ? `${totalVotes} ${totalVotes === 1 ? 'голос' : totalVotes < 5 ? 'голоса' : 'голосов'}` : 'Нет оценок'}
               </p>
             </div>
-
-            {/* Внешние рейтинги */}
-            {(imdbRating || kinopoiskRating) && (
-              <div className="flex gap-4 pt-4 border-t border-gray-800">
-                {imdbRating && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-yellow-400 font-bold">IMDb</span>
-                    <span className="text-xl font-semibold">{imdbRating.toFixed(1)}</span>
-                  </div>
-                )}
-                {kinopoiskRating && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-orange-400 font-bold">Кинопоиск</span>
-                    <span className="text-xl font-semibold">{kinopoiskRating.toFixed(1)}</span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* Правая часть - Статистика */}
-          <div className="flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-400 mb-2">Средняя оценка пользователей</p>
-              <div className="text-4xl font-bold text-[#e50914]">
-                {averageRating > 0 ? `${averageRating.toFixed(1)}/10` : 'Нет оценок'}
+          {/* Внешние рейтинги - только Кинопоиск */}
+          {kinopoiskRating && (
+            <div className="mt-6 pt-4 border-t border-gray-800">
+              <div className="flex items-center gap-2 justify-center">
+                <span className="text-orange-400 font-bold">Кинопоиск</span>
+                <span className="text-xl font-semibold">{kinopoiskRating.toFixed(1)}</span>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Оценить фильм */}

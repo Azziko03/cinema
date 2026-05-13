@@ -223,11 +223,14 @@ export default function MovieDetailClient({ movie, session, locale }: MovieDetai
           isAuthenticated={!!session}
         />
 
-        {/* Book Now Button */}
+        {/* Buy Ticket Section - Mobile */}
         <div className="px-4 py-4">
-          <button className="w-full py-4 bg-[#e50914] text-white rounded-full font-bold text-lg hover:bg-[#c50812] transition-colors">
-            Забронировать
-          </button>
+          <BuyTicketSection 
+            movieId={movie.id}
+            movieTitle={translation?.title}
+            sessions={movie.sessions}
+            isAuthenticated={!!session}
+          />
         </div>
       </div>
 

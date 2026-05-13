@@ -22,6 +22,39 @@ export default function HomeClient({ moviesData, translations, locale, session }
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedYear, setSelectedYear] = useState('all')
 
+  // Подготовка данных для карусели сеансов
+  const carouselSessions = useMemo(() => {
+    if (!session) return []
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    return moviesData
+      .flatMap(movie => {
+        const translation = movie.translations.find((t: any) => t.language === locale.toUpperCase()) 
+          || movie.translations[0]
+        
+        const poster = movie.mediaFiles?.find((m: any) => m.type === 'poster')
+        
+        return movie.sessions
+          .filter((s: any) => {
+            const sessionDate = new Date(s.startTime)
+            return sessionDate >= today && sessionDate < tomorrow
+          })
+          .map((s: any) => ({
+            id: s.id,
+            movieTitle: translation?.title || 'Без названия',
+            posterUrl: poster?.url,
+            startTime: new Date(s.startTime),
+            basePrice: s.basePrice
+          }))
+      })
+      .slice(0, 10) // Ограничиваем количество слайдов
+  }, [moviesData, locale, session])
+
   // Форматирование и фильтрация фильмов
   const filteredMovies = useMemo(() => {
     const today = new Date()
@@ -75,7 +108,7 @@ export default function HomeClient({ moviesData, translations, locale, session }
           id: movie.id,
           title: translation?.title || 'Без названия',
           genre: genres || 'Без жанра',
-          rating: movie.metadata?.imdbRating ? Number(movie.metadata.imdbRating) : 0,
+          rating: movie.averageRating || 0,
           price: minPrice,
           times: times,
           year: movie.metadata?.year || new Date(movie.releaseDate).getFullYear(),
@@ -168,10 +201,10 @@ export default function HomeClient({ moviesData, translations, locale, session }
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <Header translations={translations} locale={locale} />
+      <Header translations={translations} locale={locale} isAuthenticated={!!session} />
 
       {/* Hero Section - Full Screen Centered */}
-      <Carousel translations={translations} isAuthenticated={!!session} />
+      <Carousel translations={translations} isAuthenticated={!!session} sessions={carouselSessions} />
 
       {/* Main Content */}
       <main className="pb-12 md:pb-12">
@@ -237,8 +270,8 @@ export default function HomeClient({ moviesData, translations, locale, session }
         </div>
       </main>
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer - только для неавторизованных пользователей */}
+      {!session && <Footer />}
 
       {/* Bottom Navigation - Mobile Only */}
       <BottomNav />

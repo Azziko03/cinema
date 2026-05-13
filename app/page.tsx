@@ -26,25 +26,36 @@ async function getMoviesWithSessions() {
         orderBy: {
           startTime: 'asc'
         }
-      }
+      },
+      ratings: true // Добавляем рейтинги пользователей
     },
     take: 50
   })
 
   // Сериализуем данные для клиента
-  return movies.map(movie => ({
-    ...movie,
-    metadata: movie.metadata ? {
-      ...movie.metadata,
-      imdbRating: movie.metadata.imdbRating ? Number(movie.metadata.imdbRating) : null,
-      kinopoiskRating: movie.metadata.kinopoiskRating ? Number(movie.metadata.kinopoiskRating) : null,
-    } : null,
-    sessions: movie.sessions.map(session => ({
-      ...session,
-      basePrice: Number(session.basePrice),
-      vipPrice: session.vipPrice ? Number(session.vipPrice) : null,
-    }))
-  }))
+  return movies.map(movie => {
+    // Вычисляем средний рейтинг пользователей
+    const averageRating = movie.ratings.length > 0
+      ? movie.ratings.reduce((sum, r) => sum + r.rating, 0) / movie.ratings.length
+      : 0
+
+    return {
+      ...movie,
+      metadata: movie.metadata ? {
+        ...movie.metadata,
+        imdbRating: movie.metadata.imdbRating ? Number(movie.metadata.imdbRating) : null,
+        kinopoiskRating: movie.metadata.kinopoiskRating ? Number(movie.metadata.kinopoiskRating) : null,
+      } : null,
+      sessions: movie.sessions.map(session => ({
+        ...session,
+        basePrice: Number(session.basePrice),
+        vipPrice: session.vipPrice ? Number(session.vipPrice) : null,
+      })),
+      averageRating: Number(averageRating.toFixed(1)),
+      totalVotes: movie.ratings.length,
+      ratings: undefined // Убираем детальные рейтинги из ответа
+    }
+  })
 }
 
 export default async function Home() {

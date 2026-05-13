@@ -1,15 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+
+interface Session {
+  id: string
+  movieTitle: string
+  posterUrl?: string
+  startTime: Date
+  basePrice: number
+}
 
 interface CarouselProps {
   translations: any
   isAuthenticated?: boolean
+  sessions?: Session[]
 }
 
-export default function Carousel({ translations, isAuthenticated = false }: CarouselProps) {
+export default function Carousel({ translations, isAuthenticated = false, sessions = [] }: CarouselProps) {
   const [current, setCurrent] = useState(0)
   const router = useRouter()
   const t = translations.carousel
@@ -43,12 +52,14 @@ export default function Carousel({ translations, isAuthenticated = false }: Caro
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % slides.length)
+      if (isAuthenticated && sessions.length > 0) {
+        setCurrent((prev) => (prev + 1) % sessions.length)
+      } else {
+        setCurrent((prev) => (prev + 1) % slides.length)
+      }
     }, 7000)
     return () => clearInterval(timer)
-  }, [])
-
-  const slide = slides[current]
+  }, [isAuthenticated, sessions.length])
 
   const scrollToContent = () => {
     window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })
@@ -57,6 +68,89 @@ export default function Carousel({ translations, isAuthenticated = false }: Caro
   const handleLoginClick = () => {
     router.push('/auth/signup')
   }
+
+  const nextSlide = () => {
+    if (isAuthenticated && sessions.length > 0) {
+      setCurrent((prev) => (prev + 1) % sessions.length)
+    } else {
+      setCurrent((prev) => (prev + 1) % slides.length)
+    }
+  }
+
+  const prevSlide = () => {
+    if (isAuthenticated && sessions.length > 0) {
+      setCurrent((prev) => (prev - 1 + sessions.length) % sessions.length)
+    } else {
+      setCurrent((prev) => (prev - 1 + slides.length) % slides.length)
+    }
+  }
+
+  // Если пользователь авторизован, показываем карусель с постерами сеансов
+  if (isAuthenticated && sessions.length > 0) {
+    const session = sessions[current]
+    
+    return (
+      <div className="relative w-full h-[70vh] md:h-[80vh] flex items-center justify-center overflow-hidden">
+        {/* Фоновое изображение постера на весь экран */}
+        {session.posterUrl && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${session.posterUrl})` }}
+          >
+            <div className="absolute inset-0 bg-black/40" />
+          </div>
+        )}
+        {!session.posterUrl && <div className="absolute inset-0 bg-black" />}
+
+        {/* Кнопки навигации */}
+        <button
+          onClick={prevSlide}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors"
+          aria-label="Предыдущий слайд"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <button
+          onClick={nextSlide}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors"
+          aria-label="Следующий слайд"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+
+        {/* Индикаторы */}
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center justify-center gap-2.5 z-20">
+          {sessions.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrent(index)}
+              className={`h-1.5 rounded-full transition-all ${
+                index === current
+                  ? 'bg-white w-10'
+                  : 'bg-gray-600 w-2.5 hover:bg-gray-400'
+              }`}
+              aria-label={`Перейти к слайду ${index + 1}`}
+            />
+          ))}
+        </div>
+
+        {/* Scroll Down Indicator */}
+        <button
+          onClick={scrollToContent}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce z-20"
+          aria-label={t.scrollDown}
+        >
+          <ChevronDown className="w-9 h-9 md:w-10 md:h-10 text-gray-400" />
+        </button>
+
+        {/* Bottom Gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
+      </div>
+    )
+  }
+
+  // Для неавторизованных пользователей показываем оригинальную карусель
+  const slide = slides[current]
 
   return (
     <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
