@@ -35,9 +35,22 @@ export default function SessionFilter({
     { id: 'action', label: t.categories?.action || 'Боевик' },
     { id: 'comedy', label: t.categories?.comedy || 'Комедия' },
     { id: 'drama', label: t.categories?.drama || 'Драма' },
-    { id: 'fantasy', label: t.categories?.fantasy || 'Фантастика' },
-    { id: 'horror', label: t.categories?.horror || 'Ужасы' },
     { id: 'thriller', label: t.categories?.thriller || 'Триллер' },
+    { id: 'horror', label: t.categories?.horror || 'Ужасы' },
+    { id: 'fantasy', label: t.categories?.fantasy || 'Фантастика' },
+    { id: 'adventure', label: t.categories?.adventure || 'Приключения' },
+    { id: 'detective', label: t.categories?.detective || 'Детектив' },
+    { id: 'romance', label: t.categories?.romance || 'Мелодрама' },
+    { id: 'war', label: t.categories?.war || 'Военный' },
+    { id: 'historical', label: t.categories?.historical || 'Исторический' },
+    { id: 'biography', label: t.categories?.biography || 'Биография' },
+    { id: 'documentary', label: t.categories?.documentary || 'Документальный' },
+    { id: 'animation', label: t.categories?.animation || 'Мультфильм' },
+    { id: 'family', label: t.categories?.family || 'Семейный' },
+    { id: 'crime', label: t.categories?.crime || 'Криминал' },
+    { id: 'western', label: t.categories?.western || 'Вестерн' },
+    { id: 'musical', label: t.categories?.musical || 'Мюзикл' },
+    { id: 'sport', label: t.categories?.sport || 'Спорт' },
   ]
 
   const years = [
@@ -114,7 +127,7 @@ export default function SessionFilter({
                   className="fixed inset-0 z-40"
                   onClick={() => setIsCategoryOpen(false)}
                 />
-                <div className="absolute top-full mt-2 right-0 w-48 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="absolute top-full mt-2 right-0 w-48 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
                   {categories.map((category) => (
                     <button
                       key={category.id}

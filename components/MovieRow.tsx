@@ -12,6 +12,7 @@ interface Movie {
   price: number
   times: string[]
   image?: string
+  ageRating?: string
 }
 
 interface MovieRowProps {
@@ -60,6 +61,7 @@ export default function MovieRow({ title, movies, isAuthenticated = false }: Mov
                 times={movie.times}
                 image={movie.image}
                 isAuthenticated={isAuthenticated}
+                ageRating={movie.ageRating}
               />
             </div>
           ))}

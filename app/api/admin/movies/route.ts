@@ -50,10 +50,16 @@ export async function POST(request: NextRequest) {
       where: {
         translations: {
           some: {
-            title: genre,
+            title: {
+              equals: genre,
+              mode: 'insensitive' // Регистронезависимый поиск
+            },
             language: "RU",
           },
         },
+      },
+      include: {
+        translations: true,
       },
     });
 
@@ -62,11 +68,14 @@ export async function POST(request: NextRequest) {
       const slug = genre
         .toLowerCase()
         .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
+        .replace(/[^а-яa-z0-9-]/g, "");
 
       // Проверяем, существует ли жанр с таким slug
       genreRecord = await prisma.genre.findUnique({
         where: { slug },
+        include: {
+          translations: true,
+        },
       });
 
       // Если жанр с таким slug не существует, создаем новый
@@ -84,8 +93,15 @@ export async function POST(request: NextRequest) {
                   language: "KG",
                   title: genre,
                 },
+                {
+                  language: "EN",
+                  title: genre,
+                },
               ],
             },
+          },
+          include: {
+            translations: true,
           },
         });
       }

@@ -105,15 +105,29 @@ export default function MoviesClient({ initialMovies }: MoviesClientProps) {
   // Инициализация формы для редактирования
   const initializeEditForm = (movie: Movie) => {
     const translation = movie.translations.find((t) => t.language === "RU");
-    const genre = movie.genres[0]?.genre.translations.find((t) => t.language === "RU");
+    
+    // Получаем все жанры фильма
+    const movieGenres = movie.genres
+      .map((g) => {
+        const genreTranslation = g.genre.translations.find((t) => t.language === "RU");
+        return genreTranslation?.title || "";
+      })
+      .filter(Boolean);
+    
+    // Берем первый жанр
+    const firstGenre = movieGenres[0] || "";
+    
+    // Проверяем, есть ли жанр в списке предустановленных
+    const isPresetGenre = genres.includes(firstGenre);
+    
     const poster = movie.mediaFiles.find((m) => m.type === "poster");
     const trailer = movie.mediaFiles.find((m) => m.type === "trailer");
 
     setFormData({
       title: translation?.title || "",
       description: translation?.description || "",
-      genre: genre?.title || "",
-      customGenre: "",
+      genre: isPresetGenre ? firstGenre : "Другое",
+      customGenre: isPresetGenre ? "" : firstGenre,
       durationMinutes: movie.durationMinutes.toString(),
       ageRating: movie.ageRating,
       status: movie.status,

@@ -54,6 +54,12 @@ export async function PUT(
     }
 
     // Проверяем, что зал свободен в это время (исключая текущий сеанс)
+    // Добавляем 20 минут перерыва к времени окончания для проверки
+    const BREAK_TIME_MINUTES = 20;
+    const startTimeDate = new Date(startTime);
+    const endTimeDate = new Date(endTime);
+    const endTimeWithBreak = new Date(endTimeDate.getTime() + BREAK_TIME_MINUTES * 60 * 1000);
+    
     const conflictingSessions = await prisma.session.findMany({
       where: {
         hallId,
@@ -61,75 +67,80 @@ export async function PUT(
         OR: [
           {
             AND: [
-              { startTime: { lte: new Date(startTime) } },
-              { endTime: { gt: new Date(startTime) } },
+              { startTime: { lte: startTimeDate } },
+              { endTime: { gt: startTimeDate } },
             ],
           },
           {
             AND: [
-              { startTime: { lt: new Date(endTime) } },
-              { endTime: { gte: new Date(endTime) } },
+              { startTime: { lt: endTimeWithBreak } },
+              { endTime: { gte: endTimeWithBreak } },
             ],
           },
           {
             AND: [
-              { startTime: { gte: new Date(startTime) } },
-              { endTime: { lte: new Date(endTime) } },
+              { startTime: { gte: startTimeDate } },
+              { endTime: { lte: endTimeWithBreak } },
             ],
           },
         ],
       },
+      include: {
+        movie: {
+          include: {
+            translations: true,
+          },
+        },
+      },
     });
 
     if (conflictingSessions.length > 0) {
+      const conflictingSession = conflictingSessions[0];
+      const movieTitle = conflictingSession.movie.translations.find(t => t.language === 'RU')?.title 
+        || conflictingSession.movie.translations[0]?.title 
+        || 'Неизвестный фильм';
+      
+      const conflictStart = new Date(conflictingSession.startTime).toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      const conflictEnd = new Date(conflictingSession.endTime).toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
       return NextResponse.json(
-        { error: "Зал занят в это время" },
+        { 
+          error: `Зал занят: "${movieTitle}" (${conflictStart} - ${conflictEnd}). Требуется перерыв ${BREAK_TIME_MINUTES} минут` 
+        },
         { status: 400 }
       );
     }
 
-    // Маппинг формата для базы данных
+    // Маппинг формата для базы данных (для совместимости со старым кодом)
+    // Prisma enum использует TWO_D, THREE_D, IMAX
     const formatMap: Record<string, string> = {
-      'TWO_D': '2D',
-      'THREE_D': '3D',
-      'IMAX': 'IMAX'
+      '2D': 'TWO_D',
+      '3D': 'THREE_D',
+      'IMAX': 'IMAX',
+      'TWO_D': 'TWO_D',
+      'THREE_D': 'THREE_D',
     };
-    const dbFormat = formatMap[format] || format;
+    const prismaFormat = formatMap[format] || format;
 
-    // Обновляем сеанс с использованием executeRaw для обновления внешних ключей
-    if (vipPrice) {
-      await prisma.$executeRaw`
-        UPDATE sessions 
-        SET 
-          movie_id = ${movieId}::uuid,
-          hall_id = ${hallId}::uuid,
-          start_time = ${new Date(startTime)},
-          end_time = ${new Date(endTime)},
-          base_price = ${String(basePrice)}::decimal,
-          vip_price = ${String(vipPrice)}::decimal,
-          language = ${language}::"SessionLanguage",
-          format = ${dbFormat}::"SessionFormat"
-        WHERE id = ${id}::uuid
-      `;
-    } else {
-      await prisma.$executeRaw`
-        UPDATE sessions 
-        SET 
-          movie_id = ${movieId}::uuid,
-          hall_id = ${hallId}::uuid,
-          start_time = ${new Date(startTime)},
-          end_time = ${new Date(endTime)},
-          base_price = ${String(basePrice)}::decimal,
-          vip_price = NULL,
-          language = ${language}::"SessionLanguage",
-          format = ${dbFormat}::"SessionFormat"
-        WHERE id = ${id}::uuid
-      `;
-    }
-
-    // Получаем обновленный сеанс
-    const updatedSession = await prisma.session.findUnique({
+    // Обновляем сеанс через Prisma update
+    const updatedSession = await prisma.session.update({
       where: { id },
+      data: {
+        movieId,
+        hallId,
+        startTime: startTimeDate,
+        endTime: endTimeDate,
+        basePrice: String(basePrice),
+        vipPrice: vipPrice ? String(vipPrice) : null,
+        language: language as any,
+        format: prismaFormat as any,
+      },
       include: {
         movie: {
           include: {
@@ -141,9 +152,10 @@ export async function PUT(
       },
     });
 
-    // Очищаем кеш для главной страницы и страницы сеансов
+    // Очищаем кеш для всех связанных страниц
     revalidatePath('/');
     revalidatePath('/admin/sessions');
+    revalidatePath(`/admin/sessions/${id}/edit`);
 
     return NextResponse.json(updatedSession);
   } catch (error) {

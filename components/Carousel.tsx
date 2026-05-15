@@ -61,6 +61,19 @@ export default function Carousel({ translations, isAuthenticated = false, sessio
     return () => clearInterval(timer)
   }, [isAuthenticated, sessions.length])
 
+  // Сбрасываем индекс, если он выходит за границы
+  useEffect(() => {
+    if (isAuthenticated && sessions.length > 0) {
+      if (current >= sessions.length) {
+        setCurrent(0)
+      }
+    } else {
+      if (current >= slides.length) {
+        setCurrent(0)
+      }
+    }
+  }, [current, isAuthenticated, sessions.length, slides.length])
+
   const scrollToContent = () => {
     window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })
   }
@@ -88,6 +101,22 @@ export default function Carousel({ translations, isAuthenticated = false, sessio
   // Если пользователь авторизован, показываем карусель с постерами сеансов
   if (isAuthenticated && sessions.length > 0) {
     const session = sessions[current]
+    
+    // Проверка на случай, если session undefined
+    if (!session) {
+      return (
+        <div className="relative w-full h-[70vh] md:h-[80vh] flex items-center justify-center overflow-hidden bg-black">
+          <div className="text-center z-10 px-4">
+            <h1 className="text-4xl md:text-6xl font-bold mb-4">
+              {translations.hero?.title || 'Добро пожаловать в кинотеатр'}
+            </h1>
+            <p className="text-lg md:text-xl text-gray-300 mb-8">
+              {translations.hero?.subtitle || 'Выберите фильм и забронируйте билеты онлайн'}
+            </p>
+          </div>
+        </div>
+      )
+    }
     
     return (
       <div className="relative w-full h-[70vh] md:h-[80vh] flex items-center justify-center overflow-hidden">

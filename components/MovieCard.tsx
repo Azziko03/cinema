@@ -12,9 +12,10 @@ interface MovieCardProps {
   times: string[]
   image?: string
   isAuthenticated?: boolean
+  ageRating?: string
 }
 
-export default function MovieCard({ movieId, title, genre, rating, price, times, image, isAuthenticated = false }: MovieCardProps) {
+export default function MovieCard({ movieId, title, genre, rating, price, times, image, isAuthenticated = false, ageRating }: MovieCardProps) {
   const router = useRouter()
 
   const handleLoginClick = (e: React.MouseEvent) => {
@@ -72,8 +73,17 @@ export default function MovieCard({ movieId, title, genre, rating, price, times,
 
       {/* Информация */}
       <div className="p-4 space-y-3 bg-black">
-        <h3 className="font-semibold text-base line-clamp-1">{title}</h3>
-        <p className="text-sm text-gray-400 line-clamp-1">{genre}</p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-base line-clamp-1">{title}</h3>
+            <p className="text-sm text-gray-400 line-clamp-1">{genre}</p>
+          </div>
+          {ageRating && (
+            <div className="flex-shrink-0 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs font-semibold text-gray-300">
+              {ageRating}
+            </div>
+          )}
+        </div>
 
         {/* Цена */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-900">

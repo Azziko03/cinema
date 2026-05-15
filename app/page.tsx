@@ -4,10 +4,23 @@ import { getTranslations } from '@/app/i18n'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getMoviesWithSessions() {
+  // Получаем текущую дату
+  const now = new Date();
+  
   const movies = await prisma.movie.findMany({
     where: {
-      status: 'now_showing'
+      // Показываем фильмы, у которых есть сеансы в будущем
+      sessions: {
+        some: {
+          startTime: {
+            gte: now
+          }
+        }
+      }
     },
     include: {
       translations: true,
@@ -23,6 +36,11 @@ async function getMoviesWithSessions() {
         }
       },
       sessions: {
+        where: {
+          startTime: {
+            gte: now
+          }
+        },
         orderBy: {
           startTime: 'asc'
         }

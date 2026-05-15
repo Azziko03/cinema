@@ -381,48 +381,49 @@ export default function CreateSessionClient({
       return;
     }
     
-    // Проверяем, что есть хотя бы один зал с данными
-    const hallsWithData = Object.entries(hallsData).filter(([_, data]) => data.selectedDates.length > 0);
-    
-    if (hallsWithData.length === 0) {
-      showToast("Добавьте сеансы хотя бы для одного зала", "warning");
+    if (!selectedHallId) {
+      showToast("Выберите зал", "warning");
       return;
     }
     
-    // Валидация для каждого зала
-    for (const [hallId, data] of hallsWithData) {
-      const hall = halls.find(h => h.id === hallId);
-      const hallName = hall?.name || hallId;
+    // Проверяем только текущий выбранный зал
+    const currentData = hallsData[selectedHallId];
+    
+    if (!currentData || currentData.selectedDates.length === 0) {
+      showToast("Добавьте хотя бы одну дату для сеанса", "warning");
+      return;
+    }
+    
+    const hall = halls.find(h => h.id === selectedHallId);
+    
+    // Проверяем, что для всех дат указано время
+    for (const date of currentData.selectedDates) {
+      const dateStr = date.toISOString().split('T')[0];
+      const slots = currentData.timeSlotsByDate[dateStr] || [];
       
-      // Проверяем, что для всех дат указано время
-      for (const date of data.selectedDates) {
-        const dateStr = date.toISOString().split('T')[0];
-        const slots = data.timeSlotsByDate[dateStr] || [];
-        
-        if (slots.length === 0 || slots.some(slot => !slot.from || !slot.to)) {
-          showToast(`Укажите время для всех слотов на ${date.toLocaleDateString('ru-RU')} (${hallName})`, "warning");
+      if (slots.length === 0 || slots.some(slot => !slot.from || !slot.to)) {
+        showToast(`Укажите время для всех слотов на ${date.toLocaleDateString('ru-RU')}`, "warning");
+        return;
+      }
+      
+      // Проверяем доступность всех временных слотов
+      for (const slot of slots) {
+        if (!isTimeSlotAvailableForHall(selectedHallId, dateStr, slot.from, slot.id)) {
+          showToast(`Время ${slot.from} на ${date.toLocaleDateString('ru-RU')} недоступно`, "error");
           return;
         }
-        
-        // Проверяем доступность всех временных слотов
-        for (const slot of slots) {
-          if (!isTimeSlotAvailableForHall(hallId, dateStr, slot.from, slot.id)) {
-            showToast(`Время ${slot.from} на ${date.toLocaleDateString('ru-RU')} недоступно (${hallName})`, "error");
-            return;
-          }
-        }
       }
-      
-      if (!data.basePrice) {
-        showToast(`Укажите базовую цену для зала ${hallName}`, "warning");
-        return;
-      }
-      
-      // Проверяем VIP цену, если в зале есть VIP места
-      if (hall && hall.seats.length > 0 && !data.vipPrice) {
-        showToast(`Укажите VIP цену для зала ${hallName}`, "warning");
-        return;
-      }
+    }
+    
+    if (!currentData.basePrice) {
+      showToast(`Укажите базовую цену`, "warning");
+      return;
+    }
+    
+    // Проверяем VIP цену, если в зале есть VIP места
+    if (hall && hall.seats.length > 0 && !currentData.vipPrice) {
+      showToast(`Укажите VIP цену`, "warning");
+      return;
     }
     
     setIsSubmitting(true);
@@ -430,39 +431,39 @@ export default function CreateSessionClient({
     try {
       const promises: Promise<Response>[] = [];
       
-      // Создаем сеансы для каждого зала
-      for (const [hallId, data] of hallsWithData) {
-        // Создаем сеансы для каждой даты и каждого временного слота
-        for (const date of data.selectedDates) {
-          const dateStr = date.toISOString().split('T')[0];
-          const slots = data.timeSlotsByDate[dateStr] || [];
+      // Создаем сеансы только для текущего выбранного зала
+      const data = currentData;
+      
+      // Создаем сеансы для каждой даты и каждого временного слота
+      for (const date of data.selectedDates) {
+        const dateStr = date.toISOString().split('T')[0];
+        const slots = data.timeSlotsByDate[dateStr] || [];
+        
+        for (const slot of slots) {
+          const [hours, minutes] = slot.from.split(':').map(Number);
+          const startTime = new Date(date);
+          startTime.setHours(hours, minutes, 0, 0);
           
-          for (const slot of slots) {
-            const [hours, minutes] = slot.from.split(':').map(Number);
-            const startTime = new Date(date);
-            startTime.setHours(hours, minutes, 0, 0);
-            
-            const [endHours, endMinutes] = slot.to.split(':').map(Number);
-            const endTime = new Date(date);
-            endTime.setHours(endHours, endMinutes, 0, 0);
-            
-            promises.push(
-              fetch('/api/admin/sessions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  movieId: selectedMovieId,
-                  hallId: hallId,
-                  startTime: startTime.toISOString(),
-                  endTime: endTime.toISOString(),
-                  basePrice: parseFloat(data.basePrice),
-                  vipPrice: data.vipPrice ? parseFloat(data.vipPrice) : null,
-                  language: data.language,
-                  format: data.format,
-                }),
-              })
-            );
-          }
+          // Время окончания = время начала + длительность фильма (БЕЗ перерыва, перерыв добавляется на бэкенде для проверки конфликтов)
+          const movieDuration = selectedMovie?.durationMinutes || 0;
+          const endTime = new Date(startTime.getTime() + movieDuration * 60 * 1000);
+          
+          promises.push(
+            fetch('/api/admin/sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                movieId: selectedMovieId,
+                hallId: selectedHallId,
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+                basePrice: parseFloat(data.basePrice),
+                vipPrice: data.vipPrice ? parseFloat(data.vipPrice) : null,
+                language: data.language,
+                format: data.format,
+              }),
+            })
+          );
         }
       }
       
@@ -470,18 +471,68 @@ export default function CreateSessionClient({
       const successCount = results.filter(r => r.ok).length;
       const totalCount = results.length;
       
+      // Собираем информацию об ошибках
+      const errors: Array<{ date: string; time: string; error: string }> = [];
+      for (let i = 0; i < results.length; i++) {
+        if (!results[i].ok) {
+          const errorData = await results[i].json().catch(() => ({ error: 'Неизвестная ошибка' }));
+          
+          // Находим соответствующий слот
+          let slotIndex = 0;
+          for (const date of data.selectedDates) {
+            const dateStr = date.toISOString().split('T')[0];
+            const slots = data.timeSlotsByDate[dateStr] || [];
+            
+            for (const slot of slots) {
+              if (slotIndex === i) {
+                errors.push({
+                  date: date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+                  time: slot.from,
+                  error: errorData.error || 'Ошибка создания'
+                });
+                break;
+              }
+              slotIndex++;
+            }
+          }
+        }
+      }
+      
       if (successCount === totalCount) {
         showToast(`Успешно создано ${successCount} сеансов!`, "success");
-        // Очищаем localStorage после успешного создания
-        localStorage.removeItem('cinema_sessions_halls_data');
+        // Очищаем только данные текущего зала из localStorage
+        const newHallsData = { ...hallsData };
+        delete newHallsData[selectedHallId];
+        
+        if (Object.keys(newHallsData).length > 0) {
+          // Если есть данные для других залов, сохраняем их
+          const toSave: any = {};
+          for (const [hallId, hallData] of Object.entries(newHallsData)) {
+            toSave[hallId] = {
+              ...hallData,
+              selectedDates: hallData.selectedDates.map(d => d.toISOString()),
+              activeDateForEditing: hallData.activeDateForEditing?.toISOString() || null,
+              rangeStartDate: hallData.rangeStartDate?.toISOString() || null,
+            };
+          }
+          localStorage.setItem('cinema_sessions_halls_data', JSON.stringify(toSave));
+        } else {
+          // Если это был последний зал, очищаем localStorage полностью
+          localStorage.removeItem('cinema_sessions_halls_data');
+        }
+        
         router.push("/admin/sessions");
       } else if (successCount > 0) {
-        showToast(`Создано ${successCount} из ${totalCount} сеансов`, "warning");
-        // Очищаем localStorage после создания
-        localStorage.removeItem('cinema_sessions_halls_data');
-        router.push("/admin/sessions");
+        // Показываем детальную информацию об ошибках
+        const errorMessages = errors.map(e => `${e.date} в ${e.time}: ${e.error}`).join('\n');
+        showToast(`Создано ${successCount} из ${totalCount} сеансов.\n\nОшибки:\n${errorMessages}`, "warning");
+        
+        // Не очищаем localStorage, чтобы пользователь мог исправить ошибки
       } else {
-        showToast("Не удалось создать сеансы", "error");
+        // Все сеансы не удалось создать
+        const errorMessages = errors.slice(0, 3).map(e => `• ${e.date} в ${e.time}: ${e.error}`).join('\n');
+        const moreErrors = errors.length > 3 ? `\n...и еще ${errors.length - 3}` : '';
+        showToast(`Не удалось создать сеансы:\n\n${errorMessages}${moreErrors}`, "error");
       }
     } catch (error) {
       showToast("Ошибка при создании сеансов", "error");
@@ -813,9 +864,24 @@ export default function CreateSessionClient({
             {/* Информационное сообщение */}
             {Object.keys(hallsData).length > 0 && (
               <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-xs text-blue-400">
-                   Данные автоматически сохраняются. Вы можете переключаться между залами и заполнять их по очереди.
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-blue-400">
+                     Данные автоматически сохраняются. Вы можете переключаться между залами и заполнять их по очереди.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Вы уверены, что хотите очистить все сохраненные данные?')) {
+                        localStorage.removeItem('cinema_sessions_halls_data');
+                        setHallsData({});
+                        showToast('Данные очищены', 'success');
+                      }
+                    }}
+                    className="ml-3 px-3 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors whitespace-nowrap"
+                  >
+                    Очистить все
+                  </button>
+                </div>
               </div>
             )}
             
@@ -1084,27 +1150,40 @@ export default function CreateSessionClient({
 
                       {/* Существующие сеансы для этой даты */}
                       {sessions.length > 0 && (
-                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                          <p className="text-xs font-medium text-gray-300 mb-2">
-                            Занятые времена:
-                          </p>
-                          <div className="space-y-1">
+                        <div className="mb-4 p-4 bg-red-500/10 border-2 border-red-500/50 rounded-lg">
+                          <div className="flex items-center gap-2 mb-3">
+                            <X className="w-5 h-5 text-red-400" />
+                            <p className="text-sm font-semibold text-red-400">
+                              ⚠️ Внимание! В этом зале уже есть сеансы <span className="text-gray-500">(время окончания + 20 мин перерыв):</span>
+                            </p>
+                          </div>
+                          <div className="space-y-2">
                             {sessions.map((session) => {
                               const start = new Date(session.startTime);
                               const end = new Date(session.endTime);
                               const endWithBreak = new Date(end.getTime() + BREAK_TIME_MINUTES * 60000);
                               
                               return (
-                                <div key={session.id} className="flex items-center justify-between text-xs">
-                                  <span className="text-white">{session.movieTitle}</span>
-                                  <span className="text-red-400">
-                                    {start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - {endWithBreak.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                                    <span className="text-gray-500 ml-1">(+20 мин)</span>
-                                  </span>
+                                <div key={session.id} className="flex items-center justify-between p-2 bg-red-500/5 rounded">
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-white">{session.movieTitle}</p>
+                                    <p className="text-xs text-gray-400">Зал: {session.hallName}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-mono text-red-400">
+                                      {start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - {endWithBreak.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      (фильм до {end.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})
+                                    </p>
+                                  </div>
                                 </div>
                               );
                             })}
                           </div>
+                          <p className="text-xs text-gray-400 mt-3">
+                            💡 Учитывайте занятое время и 20-минутный перерыв между сеансами
+                          </p>
                         </div>
                       )}
 
@@ -1125,7 +1204,7 @@ export default function CreateSessionClient({
                                   onChange={(e) => {
                                     const newFromValue = e.target.value;
                                     
-                                    // Вычисляем время "до" если есть полное время
+                                    // Вычисляем время "до" если есть полное время (длительность фильма + 20 минут перерыва)
                                     let calculatedTimeTo = slot.to;
                                     if (selectedMovie && newFromValue && newFromValue.includes(':')) {
                                       const parts = newFromValue.split(':');
@@ -1134,8 +1213,8 @@ export default function CreateSessionClient({
                                         const minutes = parseInt(parts[1]);
                                         if (!isNaN(hours) && !isNaN(minutes)) {
                                           const startMinutes = hours * 60 + minutes;
-                                          const endMinutes = startMinutes + selectedMovie.durationMinutes;
-                                          const endHours = Math.floor(endMinutes / 60);
+                                          const endMinutes = startMinutes + selectedMovie.durationMinutes + BREAK_TIME_MINUTES;
+                                          const endHours = Math.floor(endMinutes / 60) % 24;
                                           const endMins = endMinutes % 60;
                                           calculatedTimeTo = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
                                         }
@@ -1158,7 +1237,7 @@ export default function CreateSessionClient({
                               
                               <div>
                                 <label className="block text-xs text-gray-400 mb-1">
-                                  До <span className="text-gray-500">(авто)</span>
+                                  До <span className="text-gray-500">(авто, +20 мин перерыв)</span>
                                 </label>
                                 <input
                                   type="time"
@@ -1169,13 +1248,23 @@ export default function CreateSessionClient({
                               </div>
                             </div>
 
-                            {/* Индикатор доступности */}
+                            {/* Индикатор доступности с подсказкой */}
                             {slot.from && (
-                              <div className="w-8">
+                              <div className="w-8 relative group">
                                 {isTimeSlotAvailable(dateStr, slot.from, slot.id) ? (
-                                  <Check className="w-5 h-5 text-green-400" />
+                                  <>
+                                    <Check className="w-5 h-5 text-green-400" />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-green-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                      Время доступно
+                                    </div>
+                                  </>
                                 ) : (
-                                  <X className="w-5 h-5 text-red-400" />
+                                  <>
+                                    <X className="w-5 h-5 text-red-400" />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-red-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 max-w-xs">
+                                      ⚠️ Конфликт с существующим сеансом или недостаточный перерыв (20 мин)
+                                    </div>
+                                  </>
                                 )}
                               </div>
                             )}

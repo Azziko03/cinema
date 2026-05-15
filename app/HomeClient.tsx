@@ -24,6 +24,7 @@ export default function HomeClient({ moviesData, translations, locale, session }
 
   // Подготовка данных для карусели сеансов
   const carouselSessions = useMemo(() => {
+    // Карусель с сеансами показываем только авторизованным пользователям
     if (!session) return []
     
     const today = new Date()
@@ -39,7 +40,7 @@ export default function HomeClient({ moviesData, translations, locale, session }
         
         const poster = movie.mediaFiles?.find((m: any) => m.type === 'poster')
         
-        return movie.sessions
+        return (movie.sessions || [])
           .filter((s: any) => {
             const sessionDate = new Date(s.startTime)
             return sessionDate >= today && sessionDate < tomorrow
@@ -47,11 +48,12 @@ export default function HomeClient({ moviesData, translations, locale, session }
           .map((s: any) => ({
             id: s.id,
             movieTitle: translation?.title || 'Без названия',
-            posterUrl: poster?.url,
+            posterUrl: poster?.url || undefined,
             startTime: new Date(s.startTime),
             basePrice: s.basePrice
           }))
       })
+      .filter(s => s.movieTitle && s.id) // Фильтруем невалидные сеансы
       .slice(0, 10) // Ограничиваем количество слайдов
   }, [moviesData, locale, session])
 
@@ -112,7 +114,8 @@ export default function HomeClient({ moviesData, translations, locale, session }
           price: minPrice,
           times: times,
           year: movie.metadata?.year || new Date(movie.releaseDate).getFullYear(),
-          image: poster?.url
+          image: poster?.url,
+          ageRating: movie.ageRating
         }
       })
       .filter((movie): movie is NonNullable<typeof movie> => movie !== null) // Убираем null с правильной типизацией
@@ -135,9 +138,22 @@ export default function HomeClient({ moviesData, translations, locale, session }
             'action': ['боевик', 'action'],
             'comedy': ['комедия', 'comedy'],
             'drama': ['драма', 'drama'],
-            'fantasy': ['фантастика', 'fantasy', 'sci-fi', 'научная фантастика'],
+            'thriller': ['триллер', 'thriller'],
             'horror': ['ужасы', 'horror'],
-            'thriller': ['триллер', 'thriller']
+            'fantasy': ['фантастика', 'fantasy', 'sci-fi', 'научная фантастика', 'фэнтези'],
+            'adventure': ['приключения', 'adventure', 'приключение'],
+            'detective': ['детектив', 'detective'],
+            'romance': ['мелодрама', 'romance', 'романтика', 'romantic'],
+            'war': ['военный', 'war'],
+            'historical': ['исторический', 'historical', 'история'],
+            'biography': ['биография', 'biography', 'биографический'],
+            'documentary': ['документальный', 'documentary', 'документалка'],
+            'animation': ['мультфильм', 'animation', 'анимация', 'мультик'],
+            'family': ['семейный', 'family'],
+            'crime': ['криминал', 'crime', 'криминальный'],
+            'western': ['вестерн', 'western'],
+            'musical': ['мюзикл', 'musical'],
+            'sport': ['спорт', 'sport', 'спортивный']
           }
           
           const searchTerms = categoryMap[selectedCategory] || [selectedCategory]
@@ -191,9 +207,22 @@ export default function HomeClient({ moviesData, translations, locale, session }
     'action': translations.sessionFilter?.categories?.action || 'Боевики',
     'comedy': translations.sessionFilter?.categories?.comedy || 'Комедии',
     'drama': translations.sessionFilter?.categories?.drama || 'Драмы',
-    'fantasy': translations.sessionFilter?.categories?.fantasy || 'Фантастика',
+    'thriller': translations.sessionFilter?.categories?.thriller || 'Триллеры',
     'horror': translations.sessionFilter?.categories?.horror || 'Ужасы',
-    'thriller': translations.sessionFilter?.categories?.thriller || 'Триллеры'
+    'fantasy': translations.sessionFilter?.categories?.fantasy || 'Фантастика',
+    'adventure': translations.sessionFilter?.categories?.adventure || 'Приключения',
+    'detective': translations.sessionFilter?.categories?.detective || 'Детективы',
+    'romance': translations.sessionFilter?.categories?.romance || 'Мелодрамы',
+    'war': translations.sessionFilter?.categories?.war || 'Военные',
+    'historical': translations.sessionFilter?.categories?.historical || 'Исторические',
+    'biography': translations.sessionFilter?.categories?.biography || 'Биографии',
+    'documentary': translations.sessionFilter?.categories?.documentary || 'Документальные',
+    'animation': translations.sessionFilter?.categories?.animation || 'Мультфильмы',
+    'family': translations.sessionFilter?.categories?.family || 'Семейные',
+    'crime': translations.sessionFilter?.categories?.crime || 'Криминал',
+    'western': translations.sessionFilter?.categories?.western || 'Вестерны',
+    'musical': translations.sessionFilter?.categories?.musical || 'Мюзиклы',
+    'sport': translations.sessionFilter?.categories?.sport || 'Спортивные'
   }
   
   const selectedCategoryName = categoryNames[selectedCategory] || selectedCategory

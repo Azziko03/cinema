@@ -40,35 +40,64 @@ export async function POST(request: NextRequest) {
     }
 
     // Проверяем, что зал свободен в это время
+    // Добавляем 20 минут перерыва к времени окончания для проверки
+    const BREAK_TIME_MINUTES = 20;
+    const startTimeDate = new Date(startTime);
+    const endTimeDate = new Date(endTime);
+    const endTimeWithBreak = new Date(endTimeDate.getTime() + BREAK_TIME_MINUTES * 60 * 1000);
+    
     const conflictingSessions = await prisma.session.findMany({
       where: {
         hallId,
         OR: [
           {
             AND: [
-              { startTime: { lte: new Date(startTime) } },
-              { endTime: { gt: new Date(startTime) } },
+              { startTime: { lte: startTimeDate } },
+              { endTime: { gt: startTimeDate } },
             ],
           },
           {
             AND: [
-              { startTime: { lt: new Date(endTime) } },
-              { endTime: { gte: new Date(endTime) } },
+              { startTime: { lt: endTimeWithBreak } },
+              { endTime: { gte: endTimeWithBreak } },
             ],
           },
           {
             AND: [
-              { startTime: { gte: new Date(startTime) } },
-              { endTime: { lte: new Date(endTime) } },
+              { startTime: { gte: startTimeDate } },
+              { endTime: { lte: endTimeWithBreak } },
             ],
           },
         ],
       },
+      include: {
+        movie: {
+          include: {
+            translations: true,
+          },
+        },
+      },
     });
 
     if (conflictingSessions.length > 0) {
+      const conflictingSession = conflictingSessions[0];
+      const movieTitle = conflictingSession.movie.translations.find(t => t.language === 'RU')?.title 
+        || conflictingSession.movie.translations[0]?.title 
+        || 'Неизвестный фильм';
+      
+      const conflictStart = new Date(conflictingSession.startTime).toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      const conflictEnd = new Date(conflictingSession.endTime).toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
       return NextResponse.json(
-        { error: "Зал занят в это время" },
+        { 
+          error: `Зал занят: "${movieTitle}" (${conflictStart} - ${conflictEnd}). Требуется перерыв ${BREAK_TIME_MINUTES} минут` 
+        },
         { status: 400 }
       );
     }

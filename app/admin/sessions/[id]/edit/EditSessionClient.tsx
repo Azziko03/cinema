@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastContainer";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Check } from "lucide-react";
+import { ChevronDown, ChevronUp, Check, X, Plus, Trash2 } from "lucide-react";
 
 interface Movie {
   id: string;
@@ -44,6 +44,21 @@ interface Session {
   hall: Hall;
 }
 
+interface ExistingSession {
+  id: string;
+  startTime: string;
+  endTime: string;
+  movieTitle: string;
+  hallName: string;
+}
+
+interface TimeSlot {
+  id: string;
+  from: string;
+  to: string;
+  sessionId?: string; // ID существующего сеанса, если это редактирование
+}
+
 interface EditSessionClientProps {
   session: Session;
   movies: Movie[];
@@ -58,28 +73,35 @@ export default function EditSessionClient({
   const router = useRouter();
   const { showToast } = useToast();
 
-  // Шаги процесса
-  const [currentStep, setCurrentStep] = useState(3); // Сразу на шаге 3, так как все уже выбрано
-  
-  // Шаг 1: Выбор фильма
+  const BREAK_TIME_MINUTES = 20;
+
+  // Основные данные
   const [selectedMovieId, setSelectedMovieId] = useState(session.movieId);
-  const [isMovieDropdownOpen, setIsMovieDropdownOpen] = useState(false);
-  
-  // Шаг 2: Выбор зала
   const [selectedHallId, setSelectedHallId] = useState(session.hallId);
-  const [isHallDropdownOpen, setIsHallDropdownOpen] = useState(false);
-  
-  // Шаг 3: Дата и время
   const startDate = new Date(session.startTime);
-  const [selectedDate, setSelectedDate] = useState(
-    startDate.toISOString().split("T")[0]
-  );
-  const [selectedTime, setSelectedTime] = useState(
-    startDate.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  );
+  const [selectedDate] = useState(startDate.toISOString().split("T")[0]);
+  
+  // Временные слоты
+  const initialTime = startDate.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endDate = new Date(session.endTime);
+  // Добавляем 20 минут перерыва к отображаемому времени окончания
+  const endDateWithBreak = new Date(endDate.getTime() + 20 * 60 * 1000);
+  const initialEndTime = endDateWithBreak.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
+    {
+      id: crypto.randomUUID(),
+      from: initialTime,
+      to: initialEndTime,
+      sessionId: session.id,
+    },
+  ]);
   
   // Дополнительные параметры
   const [basePrice, setBasePrice] = useState(String(session.basePrice));
@@ -89,11 +111,164 @@ export default function EditSessionClient({
   const [language, setLanguage] = useState(session.language);
   const [format, setFormat] = useState(session.format);
   
+  // Существующие сеансы в этом зале на эту дату
+  const [existingSessions, setExistingSessions] = useState<ExistingSession[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  
+  // UI состояния
+  const [isMovieDropdownOpen, setIsMovieDropdownOpen] = useState(false);
+  const [isHallDropdownOpen, setIsHallDropdownOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedMovie = movies.find((m) => m.id === selectedMovieId);
   const selectedHall = halls.find((h) => h.id === selectedHallId);
   const hasVipSeats = selectedHall ? selectedHall.seats.length > 0 : false;
+
+  // Пересчитываем время окончания при изменении фильма
+  useEffect(() => {
+    if (selectedMovie && timeSlots.length > 0) {
+      setTimeSlots(timeSlots.map(slot => {
+        if (slot.from) {
+          const parts = slot.from.split(':');
+          if (parts.length === 2 && parts[0] && parts[1]) {
+            const hours = parseInt(parts[0]);
+            const minutes = parseInt(parts[1]);
+            if (!isNaN(hours) && !isNaN(minutes)) {
+              const startMinutes = hours * 60 + minutes;
+              const endMinutes = startMinutes + selectedMovie.durationMinutes + BREAK_TIME_MINUTES;
+              const endHours = Math.floor(endMinutes / 60) % 24;
+              const endMins = endMinutes % 60;
+              const calculatedTimeTo = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+              return { ...slot, to: calculatedTimeTo };
+            }
+          }
+        }
+        return slot;
+      }));
+    }
+  }, [selectedMovieId]);
+
+  // Загрузка существующих сеансов
+  useEffect(() => {
+    loadExistingSessions();
+  }, [selectedHallId, selectedDate]);
+
+  const loadExistingSessions = async () => {
+    if (!selectedHallId || !selectedDate) return;
+    
+    setIsLoadingSessions(true);
+    try {
+      const response = await fetch('/api/admin/sessions/by-date', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          date: selectedDate, 
+          hallIds: [selectedHallId] 
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Исключаем текущий редактируемый сеанс
+        const filtered = (data.sessions || []).filter(
+          (s: any) => s.id !== session.id
+        );
+        setExistingSessions(filtered);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  // Добавить временной слот
+  const addTimeSlot = () => {
+    setTimeSlots([...timeSlots, { id: crypto.randomUUID(), from: '', to: '' }]);
+  };
+
+  // Удалить временной слот
+  const removeTimeSlot = (slotId: string) => {
+    if (timeSlots.length === 1) {
+      showToast("Должен быть хотя бы один временной слот", "warning");
+      return;
+    }
+    setTimeSlots(timeSlots.filter(slot => slot.id !== slotId));
+  };
+
+  // Обновить временной слот
+  const updateTimeSlot = (slotId: string, field: 'from' | 'to', value: string) => {
+    setTimeSlots(timeSlots.map(slot => {
+      if (slot.id === slotId && field === 'from') {
+        // Автоматически вычисляем время окончания (длительность фильма + 20 минут перерыва)
+        let calculatedTimeTo = slot.to;
+        if (selectedMovie && value && value.includes(':')) {
+          const parts = value.split(':');
+          if (parts.length === 2 && parts[0] && parts[1]) {
+            const hours = parseInt(parts[0]);
+            const minutes = parseInt(parts[1]);
+            if (!isNaN(hours) && !isNaN(minutes)) {
+              const startMinutes = hours * 60 + minutes;
+              const endMinutes = startMinutes + selectedMovie.durationMinutes + BREAK_TIME_MINUTES;
+              const endHours = Math.floor(endMinutes / 60) % 24;
+              const endMins = endMinutes % 60;
+              calculatedTimeTo = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+            }
+          }
+        }
+        return { ...slot, from: value, to: calculatedTimeTo };
+      }
+      return slot.id === slotId ? { ...slot, [field]: value } : slot;
+    }));
+  };
+
+  // Проверка доступности времени
+  const isTimeSlotAvailable = (startTime: string, currentSlotId?: string): boolean => {
+    if (!selectedMovie || !startTime) return true;
+    
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startMinutes = hours * 60 + minutes;
+    const endMinutes = startMinutes + selectedMovie.durationMinutes;
+    
+    // Проверяем конфликты с существующими сеансами
+    for (const session of existingSessions) {
+      const sessionStart = new Date(session.startTime);
+      const sessionEnd = new Date(session.endTime);
+      
+      const sessionStartMinutes = sessionStart.getHours() * 60 + sessionStart.getMinutes();
+      const sessionEndMinutes = sessionEnd.getHours() * 60 + sessionEnd.getMinutes();
+      const sessionEndWithBreak = sessionEndMinutes + BREAK_TIME_MINUTES;
+      
+      if (
+        (startMinutes >= sessionStartMinutes && startMinutes < sessionEndWithBreak) ||
+        (endMinutes > sessionStartMinutes && endMinutes <= sessionEndWithBreak) ||
+        (startMinutes <= sessionStartMinutes && endMinutes >= sessionEndWithBreak)
+      ) {
+        return false;
+      }
+    }
+    
+    // Проверяем конфликты с другими слотами
+    for (const slot of timeSlots) {
+      if (currentSlotId && slot.id === currentSlotId) continue;
+      if (!slot.from) continue;
+      
+      const [slotHours, slotMinutes] = slot.from.split(':').map(Number);
+      const slotStartMinutes = slotHours * 60 + slotMinutes;
+      const slotEndMinutes = slotStartMinutes + selectedMovie.durationMinutes;
+      const slotEndWithBreak = slotEndMinutes + BREAK_TIME_MINUTES;
+      
+      if (
+        (startMinutes >= slotStartMinutes && startMinutes < slotEndWithBreak) ||
+        (endMinutes > slotStartMinutes && endMinutes <= slotEndWithBreak) ||
+        (startMinutes <= slotStartMinutes && endMinutes >= slotEndWithBreak)
+      ) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
 
   // Получение постера фильма
   const getPosterUrl = (movie: Movie) => {
@@ -146,9 +321,22 @@ export default function EditSessionClient({
       return;
     }
 
-    if (!selectedDate || !selectedTime) {
-      showToast("Укажите дату и время", "warning");
+    if (!selectedDate) {
+      showToast("Укажите дату", "warning");
       return;
+    }
+
+    // Проверяем все временные слоты
+    for (const slot of timeSlots) {
+      if (!slot.from || !slot.to) {
+        showToast("Укажите время для всех слотов", "warning");
+        return;
+      }
+      
+      if (!isTimeSlotAvailable(slot.from, slot.id)) {
+        showToast(`Время ${slot.from} недоступно`, "error");
+        return;
+      }
     }
 
     if (!basePrice) {
@@ -164,52 +352,74 @@ export default function EditSessionClient({
     setIsSubmitting(true);
 
     try {
-      const [hours, minutes] = selectedTime.split(":").map(Number);
-      const sessionStartTime = new Date(selectedDate);
-      sessionStartTime.setHours(hours, minutes, 0, 0);
-
-      const movie = movies.find((m) => m.id === selectedMovieId);
-      if (!movie) {
-        showToast("Фильм не найден", "error");
-        return;
+      const promises: Promise<Response>[] = [];
+      
+      // Обрабатываем каждый временной слот
+      for (const slot of timeSlots) {
+        const [hours, minutes] = slot.from.split(':').map(Number);
+        const startTime = new Date(selectedDate);
+        startTime.setHours(hours, minutes, 0, 0);
+        
+        // Время окончания = время начала + длительность фильма (БЕЗ перерыва, перерыв добавляется на бэкенде для проверки конфликтов)
+        const movieDuration = selectedMovie?.durationMinutes || 0;
+        const endTime = new Date(startTime.getTime() + movieDuration * 60 * 1000);
+        
+        if (slot.sessionId) {
+          // Обновляем существующий сеанс
+          promises.push(
+            fetch(`/api/admin/sessions/${slot.sessionId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                movieId: selectedMovieId,
+                hallId: selectedHallId,
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+                basePrice: parseFloat(basePrice),
+                vipPrice: vipPrice ? parseFloat(vipPrice) : null,
+                language,
+                format,
+              }),
+            })
+          );
+        } else {
+          // Создаем новый сеанс
+          promises.push(
+            fetch('/api/admin/sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                movieId: selectedMovieId,
+                hallId: selectedHallId,
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+                basePrice: parseFloat(basePrice),
+                vipPrice: vipPrice ? parseFloat(vipPrice) : null,
+                language,
+                format,
+              }),
+            })
+          );
+        }
       }
-
-      const endMinutes =
-        sessionStartTime.getHours() * 60 +
-        sessionStartTime.getMinutes() +
-        movie.durationMinutes;
-      const sessionEndTime = new Date(sessionStartTime);
-      sessionEndTime.setHours(
-        Math.floor(endMinutes / 60),
-        endMinutes % 60,
-        0,
-        0
-      );
-
-      const response = await fetch(`/api/admin/sessions/${session.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          movieId: selectedMovieId,
-          hallId: selectedHallId,
-          startTime: sessionStartTime.toISOString(),
-          endTime: sessionEndTime.toISOString(),
-          basePrice: parseFloat(basePrice),
-          vipPrice: vipPrice ? parseFloat(vipPrice) : null,
-          language,
-          format,
-        }),
-      });
-
-      if (response.ok) {
-        showToast("Сеанс успешно обновлен!", "success");
+      
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r.ok).length;
+      const totalCount = results.length;
+      
+      if (successCount === totalCount) {
+        showToast(`Успешно сохранено ${successCount} сеансов!`, "success");
+        router.refresh();
+        router.push("/admin/sessions");
+      } else if (successCount > 0) {
+        showToast(`Сохранено ${successCount} из ${totalCount} сеансов`, "warning");
+        router.refresh();
         router.push("/admin/sessions");
       } else {
-        const data = await response.json();
-        showToast(data.error || "Не удалось обновить сеанс", "error");
+        showToast("Не удалось сохранить сеансы", "error");
       }
     } catch (error) {
-      showToast("Ошибка при обновлении сеанса", "error");
+      showToast("Ошибка при сохранении сеансов", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -444,39 +654,150 @@ export default function EditSessionClient({
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg border border-gray-800 p-6 mb-6">
         <h3 className="text-xl font-semibold mb-4">Дата и время</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">
-              Дата <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#e50914]"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">
-              Время начала <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="time"
-              value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#e50914]"
-              required
-            />
-          </div>
+        <div className="mb-4">
+          <label className="block text-sm text-gray-400 mb-2">
+            Дата <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={selectedDate}
+            disabled
+            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-400 cursor-not-allowed"
+          />
+          <p className="text-xs text-gray-500 mt-1">Дата не может быть изменена при редактировании</p>
         </div>
 
+        {/* Временные слоты */}
+        <div className="space-y-4 mb-4">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm text-gray-400">
+              Временные слоты <span className="text-red-500">*</span>
+            </label>
+            <button
+              type="button"
+              onClick={addTimeSlot}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Добавить слот
+            </button>
+          </div>
+
+          {timeSlots.map((slot, index) => {
+            const isAvailable = isTimeSlotAvailable(slot.from, slot.id);
+            
+            return (
+              <div key={slot.id} className="flex items-center gap-3">
+                <div className="flex-1 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Время начала
+                    </label>
+                    <input
+                      type="time"
+                      value={slot.from}
+                      onChange={(e) => updateTimeSlot(slot.id, 'from', e.target.value)}
+                      className={`w-full px-4 py-2.5 bg-gray-800 border rounded-lg text-white focus:outline-none ${
+                        !isAvailable && slot.from
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-gray-700 focus:border-[#e50914]'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Время окончания <span className="text-gray-600">(с перерывом 20 мин)</span>
+                    </label>
+                    <input
+                      type="time"
+                      value={slot.to}
+                      disabled
+                      className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-400 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                {/* Индикатор доступности */}
+                <div className="flex items-center gap-2">
+                  {slot.from && (
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        isAvailable ? 'bg-green-500/20' : 'bg-red-500/20'
+                      }`}
+                      title={isAvailable ? 'Время доступно' : 'Время занято'}
+                    >
+                      {isAvailable ? (
+                        <Check className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <X className="w-4 h-4 text-red-400" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Кнопка удаления */}
+                  {timeSlots.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeTimeSlot(slot.id)}
+                      className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      title="Удалить слот"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Информация о фильме */}
         {selectedMovie && (
-          <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+          <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg mb-4">
             <p className="text-sm text-blue-400">
               Длительность фильма: {selectedMovie.durationMinutes} минут
             </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Между сеансами автоматически добавляется перерыв {BREAK_TIME_MINUTES} минут
+            </p>
+          </div>
+        )}
+
+        {/* Существующие сеансы в этом зале */}
+        {existingSessions.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-400 mb-2">
+              Существующие сеансы в этом зале на эту дату <span className="text-gray-500">(время окончания + 20 мин перерыв):</span>
+            </p>
+            <div className="space-y-2">
+              {existingSessions.map((session) => {
+                const start = new Date(session.startTime);
+                const end = new Date(session.endTime);
+                // Добавляем 20 минут перерыва к отображаемому времени окончания
+                const endWithBreak = new Date(end.getTime() + BREAK_TIME_MINUTES * 60 * 1000);
+                return (
+                  <div
+                    key={session.id}
+                    className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg"
+                  >
+                    <p className="text-sm text-yellow-400">
+                      {start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - {endWithBreak.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                      {' • '}
+                      {session.movieTitle}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {isLoadingSessions && (
+          <div className="flex items-center justify-center py-4">
+            <svg className="animate-spin h-6 w-6 text-[#e50914]" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
           </div>
         )}
       </div>
