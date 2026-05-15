@@ -15,7 +15,7 @@ export default function Header({ translations, locale, isAuthenticated = false }
   const t = translations.header
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black to-transparent">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-gray-800">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Левая часть: Бургер-меню (только для авторизованных на мобильных) + Логотип */}
         <div className="flex items-center gap-3">
@@ -26,13 +26,15 @@ export default function Header({ translations, locale, isAuthenticated = false }
             {t.logo}
           </h1>
           
-          {/* Desktop Navigation - показываем всегда на десктопе */}
-          <nav className="hidden md:flex items-center gap-5 ml-8">
-            <a href="#" className="text-sm hover:text-gray-300 transition-colors">{t.nav.home}</a>
-            <a href="#" className="text-sm text-gray-400 hover:text-gray-300 transition-colors">{t.nav.movies}</a>
-            <a href="#" className="text-sm text-gray-400 hover:text-gray-300 transition-colors">{t.nav.new}</a>
-            <a href="#" className="text-sm text-gray-400 hover:text-gray-300 transition-colors">{t.nav.myList}</a>
-          </nav>
+          {/* Desktop Navigation - показываем только для неавторизованных на десктопе */}
+          {!isAuthenticated && (
+            <nav className="hidden md:flex items-center gap-5 ml-8">
+              <a href="#" className="text-sm hover:text-gray-300 transition-colors">{t.nav.home}</a>
+              <a href="#" className="text-sm text-gray-400 hover:text-gray-300 transition-colors">{t.nav.movies}</a>
+              <a href="#" className="text-sm text-gray-400 hover:text-gray-300 transition-colors">{t.nav.new}</a>
+              <a href="#" className="text-sm text-gray-400 hover:text-gray-300 transition-colors">{t.nav.myList}</a>
+            </nav>
+          )}
         </div>
 
         {/* Кнопки авторизации и переключатель языка */}

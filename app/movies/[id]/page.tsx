@@ -56,8 +56,16 @@ async function getMovieDetails(id: string) {
   }
 }
 
-export default async function MovieDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MovieDetailPage({ 
+  params,
+  searchParams 
+}: { 
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ hallId?: string }>
+}) {
   const { id } = await params
+  const { hallId } = await searchParams
+  
   const movie = await getMovieDetails(id)
   
   if (!movie) {
@@ -67,5 +75,5 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
   const session = await auth()
   const locale = await getLocale()
 
-  return <MovieDetailClient movie={movie} session={session} locale={locale} />
+  return <MovieDetailClient movie={movie} session={session} locale={locale} hallId={hallId} />
 }

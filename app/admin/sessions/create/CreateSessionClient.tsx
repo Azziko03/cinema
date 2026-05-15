@@ -381,49 +381,52 @@ export default function CreateSessionClient({
       return;
     }
     
-    if (!selectedHallId) {
-      showToast("Выберите зал", "warning");
+    // Проверяем, что есть хотя бы один зал с данными
+    const hallsWithData = Object.keys(hallsData).filter(hallId => {
+      const data = hallsData[hallId];
+      return data && data.selectedDates.length > 0;
+    });
+    
+    if (hallsWithData.length === 0) {
+      showToast("Добавьте хотя бы один сеанс для любого зала", "warning");
       return;
     }
     
-    // Проверяем только текущий выбранный зал
-    const currentData = hallsData[selectedHallId];
-    
-    if (!currentData || currentData.selectedDates.length === 0) {
-      showToast("Добавьте хотя бы одну дату для сеанса", "warning");
-      return;
-    }
-    
-    const hall = halls.find(h => h.id === selectedHallId);
-    
-    // Проверяем, что для всех дат указано время
-    for (const date of currentData.selectedDates) {
-      const dateStr = date.toISOString().split('T')[0];
-      const slots = currentData.timeSlotsByDate[dateStr] || [];
+    // Валидация всех залов с данными
+    for (const hallId of hallsWithData) {
+      const data = hallsData[hallId];
+      const hall = halls.find(h => h.id === hallId);
+      const hallName = hall?.name || 'Неизвестный зал';
       
-      if (slots.length === 0 || slots.some(slot => !slot.from || !slot.to)) {
-        showToast(`Укажите время для всех слотов на ${date.toLocaleDateString('ru-RU')}`, "warning");
+      // Проверяем, что для всех дат указано время
+      for (const date of data.selectedDates) {
+        const dateStr = date.toISOString().split('T')[0];
+        const slots = data.timeSlotsByDate[dateStr] || [];
+        
+        if (slots.length === 0 || slots.some(slot => !slot.from || !slot.to)) {
+          showToast(`${hallName}: Укажите время для всех слотов на ${date.toLocaleDateString('ru-RU')}`, "warning");
+          return;
+        }
+        
+        // Проверяем доступность всех временных слотов
+        for (const slot of slots) {
+          if (!isTimeSlotAvailableForHall(hallId, dateStr, slot.from, slot.id)) {
+            showToast(`${hallName}: Время ${slot.from} на ${date.toLocaleDateString('ru-RU')} недоступно`, "error");
+            return;
+          }
+        }
+      }
+      
+      if (!data.basePrice) {
+        showToast(`${hallName}: Укажите базовую цену`, "warning");
         return;
       }
       
-      // Проверяем доступность всех временных слотов
-      for (const slot of slots) {
-        if (!isTimeSlotAvailableForHall(selectedHallId, dateStr, slot.from, slot.id)) {
-          showToast(`Время ${slot.from} на ${date.toLocaleDateString('ru-RU')} недоступно`, "error");
-          return;
-        }
+      // Проверяем VIP цену, если в зале есть VIP места
+      if (hall && hall.seats.length > 0 && !data.vipPrice) {
+        showToast(`${hallName}: Укажите VIP цену`, "warning");
+        return;
       }
-    }
-    
-    if (!currentData.basePrice) {
-      showToast(`Укажите базовую цену`, "warning");
-      return;
-    }
-    
-    // Проверяем VIP цену, если в зале есть VIP места
-    if (hall && hall.seats.length > 0 && !currentData.vipPrice) {
-      showToast(`Укажите VIP цену`, "warning");
-      return;
     }
     
     setIsSubmitting(true);
@@ -431,39 +434,41 @@ export default function CreateSessionClient({
     try {
       const promises: Promise<Response>[] = [];
       
-      // Создаем сеансы только для текущего выбранного зала
-      const data = currentData;
-      
-      // Создаем сеансы для каждой даты и каждого временного слота
-      for (const date of data.selectedDates) {
-        const dateStr = date.toISOString().split('T')[0];
-        const slots = data.timeSlotsByDate[dateStr] || [];
+      // Создаем сеансы для ВСЕХ залов с заполненными данными
+      for (const hallId of hallsWithData) {
+        const data = hallsData[hallId];
         
-        for (const slot of slots) {
-          const [hours, minutes] = slot.from.split(':').map(Number);
-          const startTime = new Date(date);
-          startTime.setHours(hours, minutes, 0, 0);
+        // Создаем сеансы для каждой даты и каждого временного слота
+        for (const date of data.selectedDates) {
+          const dateStr = date.toISOString().split('T')[0];
+          const slots = data.timeSlotsByDate[dateStr] || [];
           
-          // Время окончания = время начала + длительность фильма (БЕЗ перерыва, перерыв добавляется на бэкенде для проверки конфликтов)
-          const movieDuration = selectedMovie?.durationMinutes || 0;
-          const endTime = new Date(startTime.getTime() + movieDuration * 60 * 1000);
-          
-          promises.push(
-            fetch('/api/admin/sessions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                movieId: selectedMovieId,
-                hallId: selectedHallId,
-                startTime: startTime.toISOString(),
-                endTime: endTime.toISOString(),
-                basePrice: parseFloat(data.basePrice),
-                vipPrice: data.vipPrice ? parseFloat(data.vipPrice) : null,
-                language: data.language,
-                format: data.format,
-              }),
-            })
-          );
+          for (const slot of slots) {
+            const [hours, minutes] = slot.from.split(':').map(Number);
+            const startTime = new Date(date);
+            startTime.setHours(hours, minutes, 0, 0);
+            
+            // Время окончания = время начала + длительность фильма (БЕЗ перерыва, перерыв добавляется на бэкенде для проверки конфликтов)
+            const movieDuration = selectedMovie?.durationMinutes || 0;
+            const endTime = new Date(startTime.getTime() + movieDuration * 60 * 1000);
+            
+            promises.push(
+              fetch('/api/admin/sessions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  movieId: selectedMovieId,
+                  hallId: hallId,
+                  startTime: startTime.toISOString(),
+                  endTime: endTime.toISOString(),
+                  basePrice: parseFloat(data.basePrice),
+                  vipPrice: data.vipPrice ? parseFloat(data.vipPrice) : null,
+                  language: data.language,
+                  format: data.format,
+                }),
+              })
+            );
+          }
         }
       }
       
@@ -471,66 +476,48 @@ export default function CreateSessionClient({
       const successCount = results.filter(r => r.ok).length;
       const totalCount = results.length;
       
-      // Собираем информацию об ошибках
-      const errors: Array<{ date: string; time: string; error: string }> = [];
-      for (let i = 0; i < results.length; i++) {
-        if (!results[i].ok) {
-          const errorData = await results[i].json().catch(() => ({ error: 'Неизвестная ошибка' }));
+      // Собираем информацию об ошибках с указанием зала
+      const errors: Array<{ hall: string; date: string; time: string; error: string }> = [];
+      let promiseIndex = 0;
+      
+      for (const hallId of hallsWithData) {
+        const data = hallsData[hallId];
+        const hall = halls.find(h => h.id === hallId);
+        const hallName = hall?.name || 'Неизвестный зал';
+        
+        for (const date of data.selectedDates) {
+          const dateStr = date.toISOString().split('T')[0];
+          const slots = data.timeSlotsByDate[dateStr] || [];
           
-          // Находим соответствующий слот
-          let slotIndex = 0;
-          for (const date of data.selectedDates) {
-            const dateStr = date.toISOString().split('T')[0];
-            const slots = data.timeSlotsByDate[dateStr] || [];
-            
-            for (const slot of slots) {
-              if (slotIndex === i) {
-                errors.push({
-                  date: date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
-                  time: slot.from,
-                  error: errorData.error || 'Ошибка создания'
-                });
-                break;
-              }
-              slotIndex++;
+          for (const slot of slots) {
+            if (!results[promiseIndex].ok) {
+              const errorData = await results[promiseIndex].json().catch(() => ({ error: 'Неизвестная ошибка' }));
+              errors.push({
+                hall: hallName,
+                date: date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+                time: slot.from,
+                error: errorData.error || 'Ошибка создания'
+              });
             }
+            promiseIndex++;
           }
         }
       }
       
       if (successCount === totalCount) {
-        showToast(`Успешно создано ${successCount} сеансов!`, "success");
-        // Очищаем только данные текущего зала из localStorage
-        const newHallsData = { ...hallsData };
-        delete newHallsData[selectedHallId];
-        
-        if (Object.keys(newHallsData).length > 0) {
-          // Если есть данные для других залов, сохраняем их
-          const toSave: any = {};
-          for (const [hallId, hallData] of Object.entries(newHallsData)) {
-            toSave[hallId] = {
-              ...hallData,
-              selectedDates: hallData.selectedDates.map(d => d.toISOString()),
-              activeDateForEditing: hallData.activeDateForEditing?.toISOString() || null,
-              rangeStartDate: hallData.rangeStartDate?.toISOString() || null,
-            };
-          }
-          localStorage.setItem('cinema_sessions_halls_data', JSON.stringify(toSave));
-        } else {
-          // Если это был последний зал, очищаем localStorage полностью
-          localStorage.removeItem('cinema_sessions_halls_data');
-        }
-        
+        showToast(`Успешно создано ${successCount} сеансов для ${hallsWithData.length} ${hallsWithData.length === 1 ? 'зала' : hallsWithData.length < 5 ? 'залов' : 'залов'}!`, "success");
+        // Очищаем localStorage полностью после успешного создания всех сеансов
+        localStorage.removeItem('cinema_sessions_halls_data');
         router.push("/admin/sessions");
       } else if (successCount > 0) {
         // Показываем детальную информацию об ошибках
-        const errorMessages = errors.map(e => `${e.date} в ${e.time}: ${e.error}`).join('\n');
+        const errorMessages = errors.map(e => `${e.hall} - ${e.date} в ${e.time}: ${e.error}`).join('\n');
         showToast(`Создано ${successCount} из ${totalCount} сеансов.\n\nОшибки:\n${errorMessages}`, "warning");
         
         // Не очищаем localStorage, чтобы пользователь мог исправить ошибки
       } else {
         // Все сеансы не удалось создать
-        const errorMessages = errors.slice(0, 3).map(e => `• ${e.date} в ${e.time}: ${e.error}`).join('\n');
+        const errorMessages = errors.slice(0, 3).map(e => `• ${e.hall} - ${e.date} в ${e.time}: ${e.error}`).join('\n');
         const moreErrors = errors.length > 3 ? `\n...и еще ${errors.length - 3}` : '';
         showToast(`Не удалось создать сеансы:\n\n${errorMessages}${moreErrors}`, "error");
       }
@@ -840,7 +827,12 @@ export default function CreateSessionClient({
       {currentStep >= 2 && (
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg border border-gray-800 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold">Выберите зал</h3>
+            <div>
+              <h3 className="text-xl font-semibold">Выберите зал</h3>
+              <p className="text-sm text-gray-400 mt-1">
+                Вы можете добавить сеансы для нескольких залов. Заполните данные для одного зала, затем выберите другой.
+              </p>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentStep(1)}
@@ -865,9 +857,14 @@ export default function CreateSessionClient({
             {Object.keys(hallsData).length > 0 && (
               <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-blue-400">
-                     Данные автоматически сохраняются. Вы можете переключаться между залами и заполнять их по очереди.
-                  </p>
+                  <div className="flex-1">
+                    <p className="text-xs text-blue-400 mb-1">
+                      ✓ Данные автоматически сохраняются. Вы можете переключаться между залами и заполнять их по очереди.
+                    </p>
+                    <p className="text-xs text-blue-300 font-medium">
+                      Заполнено залов: {Object.keys(hallsData).length} из {halls.length}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {

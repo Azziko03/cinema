@@ -10,6 +10,7 @@ interface MovieDetailClientProps {
   movie: any
   session: any
   locale: string
+  hallId?: string // Добавляем hallId
 }
 
 // Функция для определения типа трейлера
@@ -49,13 +50,18 @@ function getYouTubeEmbedUrl(url: string): string {
   return url
 }
 
-export default function MovieDetailClient({ movie, session, locale }: MovieDetailClientProps) {
+export default function MovieDetailClient({ movie, session, locale, hallId }: MovieDetailClientProps) {
   const router = useRouter()
   const [showTrailer, setShowTrailer] = useState(false)
 
   // Получаем перевод для текущего языка
   const translation = movie.translations.find((t: any) => t.language === locale.toUpperCase()) 
     || movie.translations[0]
+
+  // Фильтруем сеансы по hallId, если он передан
+  const filteredSessions = hallId 
+    ? movie.sessions.filter((s: any) => s.hallId === hallId)
+    : movie.sessions
 
   // Получаем постер
   const poster = movie.mediaFiles.find((m: any) => m.type === 'poster')
@@ -228,186 +234,234 @@ export default function MovieDetailClient({ movie, session, locale }: MovieDetai
           <BuyTicketSection 
             movieId={movie.id}
             movieTitle={translation?.title}
-            sessions={movie.sessions}
+            sessions={filteredSessions}
             isAuthenticated={!!session}
           />
         </div>
       </div>
 
       {/* Desktop Version */}
-      <div className="hidden lg:block container mx-auto px-4 py-8">
+      <div className="hidden lg:block">
         {/* Кнопка назад для desktop */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          <span>Назад</span>
-        </button>
+        <div className="container mx-auto px-6 pt-8">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Назад</span>
+          </button>
+        </div>
 
-        {/* Основная информация */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Постер */}
-          <div className="lg:col-span-1">
-            <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 to-black">
-              {poster ? (
+        {/* Hero Section с постером и основной информацией */}
+        <div className="relative mb-12">
+          {/* Фоновое изображение с градиентом */}
+          <div className="absolute inset-0 h-[500px]">
+            {poster && (
+              <>
                 <img 
                   src={poster.url} 
                   alt={translation?.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover opacity-20 blur-sm"
                 />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Film className="w-24 h-24 text-gray-700" />
-                </div>
-              )}
-            </div>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/50 via-[#0a0a0a]/80 to-[#0a0a0a]" />
+              </>
+            )}
           </div>
 
-          {/* Информация о фильме */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Название */}
-            <h1 className="text-4xl md:text-5xl font-bold">{translation?.title}</h1>
-
-            {/* Метаданные */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-gray-400">Длительность</p>
-                  <p className="font-semibold">{movie.durationMinutes} мин</p>
+          {/* Контент поверх фона */}
+          <div className="relative container mx-auto px-6 pt-12 pb-16">
+            <div className="grid grid-cols-12 gap-8">
+              {/* Постер */}
+              <div className="col-span-3">
+                <div className="sticky top-8">
+                  <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-900 to-black border border-gray-800">
+                    {poster ? (
+                      <img 
+                        src={poster.url} 
+                        alt={translation?.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Film className="w-24 h-24 text-gray-700" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-gray-400" />
+              {/* Информация о фильме */}
+              <div className="col-span-9 space-y-6">
+                {/* Название и рейтинги */}
                 <div>
-                  <p className="text-gray-400">Возраст</p>
-                  <p className="font-semibold">{movie.ageRating}</p>
+                  <h1 className="text-5xl font-bold mb-4 leading-tight">{translation?.title}</h1>
+                  
+                  {/* Рейтинг Кинопоиска */}
+                  <div className="flex items-center gap-6">
+                    {movie.metadata?.kinopoiskRating && (
+                      <div className="flex items-center gap-2">
+                        <div className="px-2 py-1 bg-orange-500 text-white font-bold text-sm rounded">
+                          КП
+                        </div>
+                        <span className="text-2xl font-bold text-orange-400">
+                          {Number(movie.metadata.kinopoiskRating).toFixed(1)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-gray-400">Страна</p>
-                  <p className="font-semibold">{movie.metadata?.country || 'N/A'}</p>
-                </div>
-              </div>
+                {/* Метаданные в компактной сетке */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3 bg-gray-900/50 backdrop-blur-sm rounded-lg p-3 border border-gray-800">
+                    <div className="w-10 h-10 rounded-lg bg-[#e50914]/10 flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-5 h-5 text-[#e50914]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Длительность</p>
+                      <p className="font-semibold">{movie.durationMinutes} мин</p>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-gray-400">Год</p>
-                  <p className="font-semibold">{movie.metadata?.year || 'N/A'}</p>
-                </div>
-              </div>
+                  <div className="flex items-center gap-3 bg-gray-900/50 backdrop-blur-sm rounded-lg p-3 border border-gray-800">
+                    <div className="w-10 h-10 rounded-lg bg-[#e50914]/10 flex items-center justify-center flex-shrink-0">
+                      <Star className="w-5 h-5 text-[#e50914]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Возраст</p>
+                      <p className="font-semibold">{movie.ageRating}</p>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-gray-400">Дата выхода</p>
-                  <p className="font-semibold">{releaseDate}</p>
-                </div>
-              </div>
+                  <div className="flex items-center gap-3 bg-gray-900/50 backdrop-blur-sm rounded-lg p-3 border border-gray-800">
+                    <div className="w-10 h-10 rounded-lg bg-[#e50914]/10 flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-5 h-5 text-[#e50914]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Год</p>
+                      <p className="font-semibold">{movie.metadata?.year || 'N/A'}</p>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <Film className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-gray-400">Жанр</p>
-                  <p className="font-semibold">{genres || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+                  <div className="flex items-center gap-3 bg-gray-900/50 backdrop-blur-sm rounded-lg p-3 border border-gray-800">
+                    <div className="w-10 h-10 rounded-lg bg-[#e50914]/10 flex items-center justify-center flex-shrink-0">
+                      <Globe className="w-5 h-5 text-[#e50914]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Страна</p>
+                      <p className="font-semibold">{movie.metadata?.country || 'N/A'}</p>
+                    </div>
+                  </div>
 
-        {/* Трейлер */}
-        {trailer && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-4">Смотреть трейлер</h2>
-            <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
-              {showTrailer ? (
-                <div className="relative w-full h-full">
-                  {isYouTubeUrl(trailer.url) ? (
-                    // YouTube трейлер
-                    <iframe
-                      src={getYouTubeEmbedUrl(trailer.url)}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    // Локальное видео из S3
-                    <video
-                      className="w-full h-full"
-                      controls
-                      autoPlay
-                      playsInline
-                    >
-                      <source src={trailer.url} type="video/mp4" />
-                      <source src={trailer.url} type="video/quicktime" />
-                      <source src={trailer.url} type="video/webm" />
-                      Ваш браузер не поддерживает воспроизведение видео.
-                    </video>
-                  )}
-                  <button
-                    onClick={() => setShowTrailer(false)}
-                    className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/70 hover:bg-black/90 transition-colors z-10"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <div 
-                  className="relative w-full h-full cursor-pointer group"
-                  onClick={() => setShowTrailer(true)}
-                >
-                  {poster && (
-                    <img 
-                      src={poster.url} 
-                      alt="Trailer preview"
-                      className="w-full h-full object-cover opacity-50"
-                    />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 rounded-full bg-[#e50914] flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Play className="w-10 h-10 text-white ml-1" fill="white" />
+                  <div className="flex items-center gap-3 bg-gray-900/50 backdrop-blur-sm rounded-lg p-3 border border-gray-800 col-span-2">
+                    <div className="w-10 h-10 rounded-lg bg-[#e50914]/10 flex items-center justify-center flex-shrink-0">
+                      <Film className="w-5 h-5 text-[#e50914]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Жанр</p>
+                      <p className="font-semibold">{genres || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
-              )}
+
+                {/* Описание */}
+                <div className="bg-gray-900/30 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
+                  <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                    <div className="w-1 h-6 bg-[#e50914] rounded-full" />
+                    Описание
+                  </h3>
+                  <p className="text-gray-300 leading-relaxed">
+                    {translation?.description || 'Описание отсутствует'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* Описание */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">Описание</h2>
-          <p className="text-gray-300 text-lg leading-relaxed">
-            {translation?.description || 'Описание отсутствует'}
-          </p>
         </div>
 
-        {/* Рейтинг */}
-        <RatingSection 
-          movieId={movie.id}
-          imdbRating={movie.metadata?.imdbRating}
-          kinopoiskRating={movie.metadata?.kinopoiskRating}
-          isAuthenticated={!!session}
-        />
+        {/* Контент ниже hero */}
+        <div className="container mx-auto px-6 pb-12 space-y-12">
+          {/* Трейлер */}
+          {trailer && (
+            <div>
+              <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+                <div className="w-1.5 h-8 bg-[#e50914] rounded-full" />
+                Смотреть трейлер
+              </h2>
+              <div className="relative aspect-video rounded-xl overflow-hidden bg-black shadow-2xl border border-gray-800">
+                {showTrailer ? (
+                  <div className="relative w-full h-full">
+                    {isYouTubeUrl(trailer.url) ? (
+                      <iframe
+                        src={getYouTubeEmbedUrl(trailer.url)}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        className="w-full h-full"
+                        controls
+                        autoPlay
+                        playsInline
+                      >
+                        <source src={trailer.url} type="video/mp4" />
+                        <source src={trailer.url} type="video/quicktime" />
+                        <source src={trailer.url} type="video/webm" />
+                        Ваш браузер не поддерживает воспроизведение видео.
+                      </video>
+                    )}
+                    <button
+                      onClick={() => setShowTrailer(false)}
+                      className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/70 hover:bg-black/90 transition-colors z-10"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div 
+                    className="relative w-full h-full cursor-pointer group"
+                    onClick={() => setShowTrailer(true)}
+                  >
+                    {poster && (
+                      <img 
+                        src={poster.url} 
+                        alt="Trailer preview"
+                        className="w-full h-full object-cover opacity-50"
+                      />
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <div className="w-24 h-24 rounded-full bg-[#e50914] flex items-center justify-center group-hover:scale-110 transition-transform shadow-2xl">
+                        <Play className="w-12 h-12 text-white ml-1" fill="white" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-        {/* Купить билет */}
-        <BuyTicketSection 
-          movieId={movie.id}
-          movieTitle={translation?.title}
-          sessions={movie.sessions}
-          isAuthenticated={!!session}
-        />
+          {/* Рейтинг */}
+          <RatingSection 
+            movieId={movie.id}
+            imdbRating={movie.metadata?.imdbRating}
+            kinopoiskRating={movie.metadata?.kinopoiskRating}
+            isAuthenticated={!!session}
+          />
+
+          {/* Купить билет */}
+          <BuyTicketSection 
+            movieId={movie.id}
+            movieTitle={translation?.title}
+            sessions={filteredSessions}
+            isAuthenticated={!!session}
+          />
+        </div>
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ interface SessionFilterProps {
   onCategoryChange: (category: string) => void
   selectedYear: string
   onYearChange: (year: string) => void
+  hideCategories?: boolean // Новый параметр для скрытия фильтра по категориям
 }
 
 export default function SessionFilter({ 
@@ -24,7 +25,8 @@ export default function SessionFilter({
   selectedCategory,
   onCategoryChange,
   selectedYear,
-  onYearChange
+  onYearChange,
+  hideCategories = false
 }: SessionFilterProps) {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false)
   const [isYearOpen, setIsYearOpen] = useState(false)
@@ -68,30 +70,6 @@ export default function SessionFilter({
 
   return (
     <div className="space-y-4">
-      {/* Кнопки дней */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => onDayChange('today')}
-          className={`px-6 py-3 rounded-lg font-medium transition-all ${
-            activeDay === 'today'
-              ? 'bg-[#e50914] text-white'
-              : 'bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white border border-gray-800'
-          }`}
-        >
-          {t.today}
-        </button>
-        <button
-          onClick={() => onDayChange('tomorrow')}
-          className={`px-6 py-3 rounded-lg font-medium transition-all ${
-            activeDay === 'tomorrow'
-              ? 'bg-[#e50914] text-white'
-              : 'bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white border border-gray-800'
-          }`}
-        >
-          {t.tomorrow}
-        </button>
-      </div>
-
       {/* Поиск с фильтрами справа */}
       <div className="flex flex-col md:flex-row gap-3">
         {/* Поле поиска */}
@@ -108,46 +86,48 @@ export default function SessionFilter({
 
         {/* Фильтры справа */}
         <div className="flex gap-3">
-          {/* Dropdown категорий */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setIsCategoryOpen(!isCategoryOpen)
-                setIsYearOpen(false)
-              }}
-              className="h-full px-4 py-3 bg-[#1a1a1a] border border-gray-800 rounded-lg hover:bg-[#2a2a2a] transition-colors text-white flex items-center gap-2 whitespace-nowrap min-w-[160px]"
-            >
-              <span className="text-sm">{selectedCategoryLabel}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
-            </button>
+          {/* Dropdown категорий - скрываем если hideCategories = true */}
+          {!hideCategories && (
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsCategoryOpen(!isCategoryOpen)
+                  setIsYearOpen(false)
+                }}
+                className="h-full px-4 py-3 bg-[#1a1a1a] border border-gray-800 rounded-lg hover:bg-[#2a2a2a] transition-colors text-white flex items-center gap-2 whitespace-nowrap min-w-[160px]"
+              >
+                <span className="text-sm">{selectedCategoryLabel}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-            {isCategoryOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsCategoryOpen(false)}
-                />
-                <div className="absolute top-full mt-2 right-0 w-48 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => {
-                        onCategoryChange(category.id)
-                        setIsCategoryOpen(false)
-                      }}
-                      className={`w-full px-4 py-3 text-left text-sm transition-colors ${
-                        selectedCategory === category.id
-                          ? 'bg-[#e50914] text-white font-semibold'
-                          : 'hover:bg-[#2a2a2a] text-gray-300'
-                      }`}
-                    >
-                      {category.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+              {isCategoryOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsCategoryOpen(false)}
+                  />
+                  <div className="absolute top-full mt-2 right-0 w-48 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => {
+                          onCategoryChange(category.id)
+                          setIsCategoryOpen(false)
+                        }}
+                        className={`w-full px-4 py-3 text-left text-sm transition-colors ${
+                          selectedCategory === category.id
+                            ? 'bg-[#e50914] text-white font-semibold'
+                            : 'hover:bg-[#2a2a2a] text-gray-300'
+                        }`}
+                      >
+                        {category.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Dropdown годов */}
           <div className="relative">
@@ -191,6 +171,33 @@ export default function SessionFilter({
           </div>
         </div>
       </div>
+
+      {/* Кнопки дней под поисковиком */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => onDayChange('today')}
+          className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            activeDay === 'today'
+              ? 'bg-[#e50914] text-white'
+              : 'bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white border border-gray-800'
+          }`}
+        >
+          {t.today}
+        </button>
+        <button
+          onClick={() => onDayChange('tomorrow')}
+          className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            activeDay === 'tomorrow'
+              ? 'bg-[#e50914] text-white'
+              : 'bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white border border-gray-800'
+          }`}
+        >
+          {t.tomorrow}
+        </button>
+      </div>
+
+      {/* Разделитель */}
+      <hr className="border-gray-800" />
     </div>
   )
 }

@@ -10,9 +10,10 @@ interface Movie {
   genre: string
   rating: number
   price: number
-  times: string[]
+  times: Array<{ time: string; sessionId: string }> | string[]
   image?: string
   ageRating?: string
+  hallId?: string // Добавляем hallId
 }
 
 interface MovieRowProps {
@@ -33,13 +34,13 @@ export default function MovieRow({ title, movies, isAuthenticated = false }: Mov
 
   return (
     <div className="space-y-3 group/row">
-      <h2 className="text-xl md:text-2xl font-bold text-center md:text-left px-4 md:px-0">{title}</h2>
+      <h2 className="text-xl md:text-2xl font-bold px-4 lg:px-0">{title}</h2>
       
       <div className="relative">
         {/* Left Arrow */}
         <button
           onClick={() => scroll('left')}
-          className="absolute left-0 top-0 bottom-0 z-10 w-12 bg-gradient-to-r from-black to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center justify-center hover:scale-110"
+          className="absolute left-0 top-0 bottom-0 z-10 w-12 bg-gradient-to-r from-black to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity hidden lg:flex items-center justify-center hover:scale-110"
           aria-label="Scroll left"
         >
           <ChevronLeft className="w-8 h-8" />
@@ -48,12 +49,13 @@ export default function MovieRow({ title, movies, isAuthenticated = false }: Mov
         {/* Movies Container */}
         <div
           ref={rowRef}
-          className="flex gap-4 md:gap-5 overflow-x-auto hide-scrollbar px-4 md:px-0 scroll-smooth"
+          className="flex gap-4 overflow-x-auto hide-scrollbar px-4 lg:px-0 scroll-smooth"
         >
           {movies.map((movie) => (
-            <div key={movie.id} className="flex-none w-[220px] md:w-[280px] lg:w-[320px]">
+            <div key={movie.id} className="flex-none w-[200px] md:w-[240px] lg:w-[280px]">
               <MovieCard
                 movieId={movie.id}
+                hallId={movie.hallId}
                 title={movie.title}
                 genre={movie.genre}
                 rating={movie.rating}
@@ -70,7 +72,7 @@ export default function MovieRow({ title, movies, isAuthenticated = false }: Mov
         {/* Right Arrow */}
         <button
           onClick={() => scroll('right')}
-          className="absolute right-0 top-0 bottom-0 z-10 w-12 bg-gradient-to-l from-black to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center justify-center hover:scale-110"
+          className="absolute right-0 top-0 bottom-0 z-10 w-12 bg-gradient-to-l from-black to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity hidden lg:flex items-center justify-center hover:scale-110"
           aria-label="Scroll right"
         >
           <ChevronRight className="w-8 h-8" />
